@@ -1,30 +1,14 @@
+# Default-deny policy for the namespace. This is a best practice.
+# It blocks all ingress traffic unless another policy explicitly allows it.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "wiki-chart.fullname" . }}-allow-traffic
+  name: {{ include "wiki-chart.fullname" . }}-default-deny-ingress
   namespace: {{ .Release.Namespace }}
 spec:
-  podSelector: {} # Apply to all pods in the namespace
+  podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
-  ingress:
-    # Allow ingress from any pod in the same namespace (e.g., pod-to-pod communication)
-    - from:
-      - podSelector: {}
-  egress:
-    # Allow DNS requests
-    - to:
-      - namespaceSelector: {}
-        podSelector:
-          matchLabels:
-            k8s-app: kube-dns
-      ports:
-      - protocol: UDP
-        port: 53
-    # Allow egress to any pod in the same namespace
-    - to:
-      - podSelector: {}
 
 ---
 # Specific policy for FastAPI
@@ -32,29 +16,57 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-fastapi-policy
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-fastapi
+      {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
     - Egress
   ingress:
     # Allow from Prometheus for scraping metrics
     - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-prometheus
+        - podSelector:
+            matchLabels:
+              app: prometheus
       ports:
-      - protocol: TCP
-        port: {{ .Values.fastapi.port }}
+        - protocol: TCP
+          port: {{ .Values.fastapi.port }}
+    # Allow from Ingress Controller (Traefik in k3d)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: {{ .Values.fastapi.port }}
+    # Allow from the test job
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: test
+      ports:
+        - protocol: TCP
+          port: {{ .Values.fastapi.port }}
   egress:
     # Allow to Postgres
     - to:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-postgres
+        - podSelector:
+            matchLabels:
+              app: postgres
       ports:
-      - protocol: TCP
-        port: 5432
+        - protocol: TCP
+          port: 5432
+    # Allow DNS requests for any external communication
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
