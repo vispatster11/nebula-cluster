@@ -1,20 +1,30 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "wiki-chart.fullname" . }}-allow-ingress
+  name: {{ include "wiki-chart.fullname" . }}-network-policy
   namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      app: fastapi
+      {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-fastapi
   policyTypes:
     - Ingress
     - Egress
   ingress:
+    # Allow from Traefik ingress controller (k3d default)
     - from:
-      - namespaceSelector:
+      - namespaceSelector: {}
+        podSelector:
           matchLabels:
-            kubernetes.io/metadata.name: ingress-nginx
+            app: traefik
+      ports:
+        - protocol: TCP
+          port: {{ .Values.fastapi.port }}
+    # Allow from Prometheus in same namespace
+    - from:
       - podSelector:
           matchLabels:
             app: prometheus
@@ -22,6 +32,7 @@ spec:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
   egress:
+    # Allow to PostgreSQL
     - to:
       - podSelector:
           matchLabels:
@@ -29,3 +40,15 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
+    # Allow DNS (for any external lookups)
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow HTTPS for external calls if needed
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

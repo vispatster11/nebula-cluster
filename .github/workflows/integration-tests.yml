@@ -191,7 +191,7 @@ jobs:
             --servers 1 \
             --agents 0 \
             --wait \
-            --image ghcr.io/k3d-io/k3s:v1.27.0-k3s1-amd64
+            --image ghcr.io/k3d-io/k3s:latest
           
           kubectl cluster-info
 
