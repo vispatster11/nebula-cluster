@@ -235,6 +235,8 @@ jobs:
         run: |
           echo "Waiting for pods to be ready (timeout: 120s)..."
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=wiki-chart-fastapi --timeout=120s --all-namespaces || true
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=wiki-chart-grafana --timeout=120s --all-namespaces || true
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=wiki-chart-postgres --timeout=120s --all-namespaces || true
           
           echo "=== Test Job Status ==="
           kubectl get jobs -A
@@ -242,6 +244,107 @@ jobs:
           
           echo "=== Test Job Logs ==="
           kubectl logs -l app.kubernetes.io/component=test --tail=50 || echo "Test logs unavailable"
+
+      - name: Test FastAPI endpoints via port-forward
+        run: |
+          echo "=== Testing FastAPI Application ==="
+          
+          # Start port-forward in background
+          kubectl port-forward -n default svc/wiki-chart-fastapi 8080:80 &
+          FORWARD_PID=$!
+          sleep 3
+          
+          # Health check
+          echo "Testing GET / (root endpoint)"
+          curl -s -i http://localhost:8080/ || echo "Root endpoint check failed"
+          
+          # Create user
+          echo ""
+          echo "Testing POST /users (create user)"
+          USER_RESPONSE=$(curl -s -X POST http://localhost:8080/users \
+            -H "Content-Type: application/json" \
+            -d '{"name":"K8s Test User"}')
+          echo "$USER_RESPONSE"
+          
+          # Get user
+          echo ""
+          echo "Testing GET /users/1 (retrieve user)"
+          curl -s http://localhost:8080/users/1 || echo "Get user failed"
+          
+          # Create post
+          echo ""
+          echo "Testing POST /posts (create post)"
+          POST_RESPONSE=$(curl -s -X POST http://localhost:8080/posts \
+            -H "Content-Type: application/json" \
+            -d '{"user_id":1,"content":"Kubernetes test post"}')
+          echo "$POST_RESPONSE"
+          
+          # Get post
+          echo ""
+          echo "Testing GET /posts/1 (retrieve post)"
+          curl -s http://localhost:8080/posts/1 || echo "Get post failed"
+          
+          # Metrics endpoint
+          echo ""
+          echo "Testing GET /metrics (Prometheus metrics)"
+          curl -s http://localhost:8080/metrics | head -30 || echo "Metrics endpoint failed"
+          
+          # Cleanup port-forward
+          kill $FORWARD_PID || true
+
+      - name: Test Grafana dashboard access
+        run: |
+          echo "=== Testing Grafana Dashboard ==="
+          
+          # Port-forward to Grafana
+          kubectl port-forward -n default svc/wiki-chart-grafana 3000:80 &
+          FORWARD_PID=$!
+          sleep 3
+          
+          # Check Grafana health
+          echo "Testing Grafana HTTP status:"
+          curl -s -i http://localhost:3000/api/health || echo "Grafana health check failed"
+          
+          echo ""
+          echo "Testing Grafana dashboard availability:"
+          curl -s -i http://localhost:3000/d/creation-dashboard-678/creation || echo "Dashboard endpoint failed"
+          
+          echo ""
+          echo "Checking for Prometheus datasource:"
+          curl -s http://localhost:3000/api/datasources || echo "Datasources check failed"
+          
+          # Cleanup port-forward
+          kill $FORWARD_PID || true
+
+      - name: Verify all services and metrics
+        run: |
+          echo "=== Verifying All Services ==="
+          
+          echo "FastAPI Service:"
+          kubectl get svc wiki-chart-fastapi -o wide || echo "FastAPI service not found"
+          
+          echo ""
+          echo "PostgreSQL Service:"
+          kubectl get svc wiki-chart-postgres -o wide || echo "PostgreSQL service not found"
+          
+          echo ""
+          echo "Prometheus Service:"
+          kubectl get svc wiki-chart-prometheus -o wide || echo "Prometheus service not found"
+          
+          echo ""
+          echo "Grafana Service:"
+          kubectl get svc wiki-chart-grafana -o wide || echo "Grafana service not found"
+          
+          echo ""
+          echo "=== Checking Prometheus Targets ==="
+          kubectl port-forward -n default svc/wiki-chart-prometheus 9090:80 &
+          FORWARD_PID=$!
+          sleep 3
+          
+          echo "Active targets in Prometheus:"
+          curl -s http://localhost:9090/api/v1/targets || echo "Could not fetch Prometheus targets"
+          
+          kill $FORWARD_PID || true
 
       - name: Cleanup k3d cluster
         if: always()

@@ -39,7 +39,7 @@ check_file_content "wiki-chart/templates/networkpolicy.yaml" "port: 53" "Network
 
 echo ""
 echo "Checking documentation..."
-check_file_content "PIPELINE_ERRORS_FIXED.md" "All pipeline errors fixed" "Pipeline fixes documented"
+check_file_content "PIPELINE.md" "pipeline fixes" "Pipeline documentation consolidated"
 
 echo ""
 echo "=== Summary ==="

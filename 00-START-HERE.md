@@ -10,7 +10,7 @@ Build and run the whole stack in one container. Minimal steps below.
 Build the image:
 
 ```powershell
-cd 'C:\Users\vispa\OneDrive\Downloads\git\Personal\assi\1-GHCode'
+# From the repository root
 docker build -t nebula-cluster .
 ```
 
@@ -20,7 +20,7 @@ Run it (privileged required):
 docker run --privileged -p 8080:8080 nebula-cluster
 ```
 
-Wait ~90–120s for the "Container ready" message.
+Wait until the "Container ready" message appears.
 
 Quick checks (after ready):
 
@@ -43,7 +43,7 @@ That's all — short and simple.
 - [ ] Clone repository
 - [ ] `docker build -t nebula-cluster .` → Success
 - [ ] `docker run --privileged -p 8080:8080 nebula-cluster` → Starts
-- [ ] Wait ~120 seconds for "Container ready"
+- [ ] Wait for the "Container ready" message
 - [ ] `curl http://localhost:8080/` → Response
 - [ ] `curl -X POST http://localhost:8080/users ...` → User created
 - [ ] `curl http://localhost:8080/users/1` → User retrieved
@@ -99,8 +99,8 @@ kubectl describe pod <pod-name>
 
 ## Final Checklist
 
-- [x] ✅ Builds successfully (30-60s)
-- [x] ✅ Runs successfully (90-120s)
+- [x] ✅ Builds successfully
+- [x] ✅ Runs successfully
 - [x] ✅ All APIs functional
 - [x] ✅ Data persists correctly
 - [x] ✅ Monitoring & dashboards working

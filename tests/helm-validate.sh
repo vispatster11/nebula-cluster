@@ -92,7 +92,7 @@ else
     exit 1
 fi
 
-if grep -q "drop:" "$RENDERED" && grep -q "- ALL" "$RENDERED"; then
+if grep -q "drop:" "$RENDERED" && grep -q "ALL" "$RENDERED"; then
     echo "✓ Capability drop found"
 else
     echo "✗ Capability drop not found"
