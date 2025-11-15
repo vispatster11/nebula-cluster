@@ -4,7 +4,7 @@ metadata:
   name: {{ include "wiki-chart.fullname" . }}-fastapi
   namespace: {{ .Values.namespace }}
   labels:
-    app: fastapi
+    {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -12,7 +12,7 @@ spec:
     targetPort: {{ .Values.fastapi.port }}
     protocol: TCP
   selector:
-    app: fastapi
+    {{- include "wiki-chart.selectorLabels" . | nindent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -20,17 +20,16 @@ metadata:
   name: {{ include "wiki-chart.fullname" . }}-fastapi
   namespace: {{ .Values.namespace }}
   labels:
-    app: fastapi
-    release: {{ .Release.Name }}
+    {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.fastapi.replicas }}
   selector:
     matchLabels:
-      app: fastapi
+      {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: fastapi
+        {{- include "wiki-chart.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "wiki-chart.fullname" . }}-fastapi-sa
       initContainers:

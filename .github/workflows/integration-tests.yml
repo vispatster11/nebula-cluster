@@ -152,26 +152,28 @@ jobs:
           kubectl get svc -n wiki-app
 
           echo "=== Deployment Logs (FastAPI) ==="
-          kubectl logs -n wiki-app -l app.kubernetes.io/name=wiki-chart-fastapi --tail=50
+          # Use the correct label 'app: fastapi' from the Helm template
+          kubectl logs -n wiki-app -l app=fastapi --tail=50
 
       - name: Wait for pods and run tests
         run: |
           echo "Waiting for pods to be ready (timeout: 120s)..."
-          kubectl wait --for=condition=ready pod -n wiki-app -l app.kubernetes.io/name=wiki-chart-fastapi --timeout=120s
+          # Use the correct label 'app: fastapi' to wait for the pod
+          kubectl wait --for=condition=ready pod -n wiki-app -l app=fastapi --timeout=120s
 
-          echo "=== Test Job Status ==="
-          kubectl get jobs -A
-          kubectl get pods -A -l app.kubernetes.io/component=test
+          echo "=== Helm Test Job Status ==="
+          # Wait for the Helm test job to complete
+          kubectl wait --for=condition=complete job/test-wiki-test -n wiki-app --timeout=60s
 
-          echo "=== Test Job Logs ==="
-          kubectl logs -l app.kubernetes.io/component=test --tail=50 || echo "Test logs unavailable"
+          echo "=== Helm Test Job Logs ==="
+          kubectl logs job/test-wiki-test -n wiki-app --tail=100
 
       - name: Test FastAPI endpoints via port-forward
         run: |
           echo "=== Testing FastAPI Application ==="
 
           # Start port-forward in the background
-          kubectl port-forward -n wiki-app svc/wiki-chart-fastapi 8080:80 &
+          kubectl port-forward -n wiki-app svc/test-wiki-fastapi 8080:80 &
           FORWARD_PID=$!
           sleep 5 # Allow time for port-forward to establish
 
@@ -218,7 +220,7 @@ jobs:
           echo "=== Testing Grafana Dashboard ==="
 
           # Port-forward to Grafana
-          kubectl port-forward -n wiki-app svc/wiki-chart-grafana 3000:80 &
+          kubectl port-forward -n wiki-app svc/test-wiki-grafana 3000:80 &
           FORWARD_PID=$!
           sleep 3
 
