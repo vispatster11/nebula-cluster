@@ -11,7 +11,7 @@ docker build -t nebula-cluster .
 ```
 
 **Build time:** ~30-60 seconds
-
+**Build time:** brief (depends on local environment)
 ### Run
 
 ```bash
@@ -19,7 +19,7 @@ docker run --privileged -p 8080:8080 nebula-cluster
 ```
 
 **Startup time:** ~90-120 seconds. Wait for "Container ready. Use Ctrl+C to stop." message.
-
+**Startup time:** allow some time for the container to initialize; wait for the "Container ready. Use Ctrl+C to stop." message.
 The `--privileged` flag is **mandatory** - it allows the container to run `dockerd` and manage the k3d cluster.
 
 ## Accessing Services
@@ -108,9 +108,11 @@ This streams application logs for troubleshooting.
 Short, human-friendly guide to build, run and test the full stack locally.
 
 1) Build the single-container cluster image (requires Docker):
-
+1) Build the single-container cluster image (requires Docker):
 ```powershell
 cd 'C:\Users\vispa\OneDrive\Downloads\git\Personal\assi\1-GHCode'
+```powershell
+# From the repository root
 docker build -t nebula-cluster .
 ```
 
@@ -121,7 +123,7 @@ docker run --privileged -p 8080:8080 nebula-cluster
 ```
 
 Wait ~90–120s until you see: "Container ready. Use Ctrl+C to stop."
-
+Wait until you see: "Container ready. Use Ctrl+C to stop."
 Service quick checks (after ready):
 
 ```powershell

@@ -44,18 +44,14 @@ jobs:
 
       - name: Install Bandit
         run: pip install bandit
-
-      - name: Run Bandit security scanner
+      - name: Run Bandit security scanner across repo
         run: |
-          bandit -r wiki-service nebula-aurora-assignment \
-            --exclude tests \
-            -f json -o bandit-report.json || true
+          # Run Bandit against all Python files in the repository, excluding test directories
+          bandit -r . --exclude tests,__pycache__ -f json -o bandit-report.json || true
 
-      - name: Display Bandit results
+      - name: Display Bandit results (text)
         run: |
-          bandit -r wiki-service nebula-aurora-assignment \
-            --exclude tests \
-            -f txt || true
+          bandit -r . --exclude tests,__pycache__ -f txt || true
 
       - name: Upload Bandit results
         uses: actions/upload-artifact@v4
@@ -78,22 +74,32 @@ jobs:
 
       - name: Install pip-audit
         run: pip install pip-audit
-
-      - name: Run pip-audit on wiki-service
+      - name: Discover Python projects and run pip-audit
         run: |
-          cd wiki-service
-          pip install -r requirements.txt
-          pip-audit --desc || true
-
-      - name: Run pip-audit on nebula-aurora-assignment
-        run: |
-          cd nebula-aurora-assignment
-          # Try to install dependencies (project uses pyproject.toml)
-          if [ -f "pyproject.toml" ]; then
-            pip install -e . 2>/dev/null || echo "Could not install via pyproject.toml"
-          elif [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt || echo "Could not install via requirements.txt"
+          set -e
+          echo "Looking for Python projects (requirements.txt / pyproject.toml)..."
+          # Find directories that contain pyproject.toml or requirements.txt
+          DIRS=$(find . -maxdepth 3 -type f \( -name "requirements.txt" -o -name "pyproject.toml" \) -printf '%h\n' | sort -u)
+          if [ -z "$DIRS" ]; then
+            echo "No Python project files found (pyproject.toml/requirements.txt). Still running pip-audit against installed environment."
+            pip-audit --desc || true
           else
-            echo "No pyproject.toml or requirements.txt found"
+            echo "Found project dirs:"; echo "$DIRS"
+            for d in $DIRS; do
+              echo "\n=== Processing project: $d ==="
+              pushd "$d" > /dev/null
+              if [ -f "requirements.txt" ]; then
+                echo "Installing requirements from requirements.txt"
+                pip install -r requirements.txt || echo "install failed for $d"
+              elif [ -f "pyproject.toml" ]; then
+                echo "Attempting pip install -e . for pyproject.toml"
+                pip install -e . 2>/dev/null || echo "editable install failed for $d; attempting pip install -r requirements.txt if present"
+                if [ -f "requirements.txt" ]; then
+                  pip install -r requirements.txt || echo "install failed for $d"
+                fi
+              fi
+              echo "Running pip-audit for $d"
+              pip-audit --desc || echo "pip-audit reported issues for $d"
+              popd > /dev/null
+            done
           fi
-          pip-audit --desc || echo "pip-audit check completed"

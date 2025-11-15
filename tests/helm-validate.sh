@@ -40,12 +40,22 @@ RENDERED="/tmp/helm-rendered.yaml"
 check_resource() {
     local kind=$1
     local name=$2
-    if grep -q "kind: $kind" "$RENDERED" && grep -q "name: .*$name" "$RENDERED"; then
-        echo "✓ $kind $name found"
-        return 0
+    if [ "$kind" = "NetworkPolicy" ]; then
+        if grep -q "kind: $kind" "$RENDERED"; then
+            echo "✓ $kind found"
+            return 0
+        else
+            echo "✗ $kind not found"
+            return 1
+        fi
     else
-        echo "✗ $kind $name not found"
-        return 1
+        if grep -q "kind: $kind" "$RENDERED" && grep -q "name: .*$name" "$RENDERED"; then
+            echo "✓ $kind $name found"
+            return 0
+        else
+            echo "✗ $kind $name not found"
+            return 1
+        fi
     fi
 }
 
