@@ -16,6 +16,10 @@ on:
       - 'wiki-service/requirements.txt'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   scan:
     runs-on: ubuntu-latest
