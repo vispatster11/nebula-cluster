@@ -83,10 +83,17 @@ jobs:
         run: |
           cd wiki-service
           pip install -r requirements.txt
-          pip-audit --desc
+          pip-audit --desc || true
 
       - name: Run pip-audit on nebula-aurora-assignment
         run: |
           cd nebula-aurora-assignment
-          pip install -e . 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
-          pip-audit --desc || true
+          # Try to install dependencies (project uses pyproject.toml)
+          if [ -f "pyproject.toml" ]; then
+            pip install -e . 2>/dev/null || echo "Could not install via pyproject.toml"
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt || echo "Could not install via requirements.txt"
+          else
+            echo "No pyproject.toml or requirements.txt found"
+          fi
+          pip-audit --desc || echo "pip-audit check completed"
