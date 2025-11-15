@@ -28,8 +28,8 @@ check_file_content() {
 
 echo "Checking GitHub Actions versions..."
 check_file_content ".github/workflows/python-quality.yml" "upload-artifact@v4" "python-quality uses upload-artifact v4"
-check_file_content ".github/workflows/image-scan.yml" "codeql-action/upload-sarif@v3" "image-scan uses codeql-action v3"
-check_file_content ".github/workflows/integration-tests.yml" "k3s:latest" "integration-tests uses k3s:latest"
+check_file_content ".github/workflows/image-scan.yml" "codeql-action/upload-sarif@v4" "image-scan uploads SARIF with upload-sarif v4"
+check_file_content ".github/workflows/integration-tests.yml" "rancher/k3s" "integration-tests uses a rancher/k3s image"
 
 echo ""
 echo "Checking Helm chart..."

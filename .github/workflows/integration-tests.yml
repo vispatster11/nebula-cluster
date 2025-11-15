@@ -127,7 +127,7 @@ jobs:
         run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
       - name: Create k3d cluster
-        run: k3d cluster create test-wiki --image rancher/k3s:v1.29.4-k3s1 --wait
+        run: k3d cluster create test-wiki --image rancher/k3s:v1.31.13-k3s1 --wait
 
       - name: Import FastAPI image into k3d
         run: k3d image import wiki-service:ci -c test-wiki
