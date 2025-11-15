@@ -83,7 +83,7 @@ grafana:
   # Grafana admin password: leave empty to auto-generate via Helm helper.
   # If you need a deterministic password for grading, set this value via
   # --set grafana.adminPassword="my-password" when installing.
-  adminPassword: ""
+  adminPassword: "admin"
   adminUser: admin
   replicas: 1
   runAsUser: 472
@@ -126,4 +126,5 @@ ingress:
           port: 3000
 
 # Namespace
-namespace: default
+# Leave empty to let Helm install use the target namespace provided at install time
+namespace: "wiki-app"

@@ -37,5 +37,5 @@ Security notes:
 - Consider adding runtime detection (Falco) and an image scanning pipeline.
 
 Access Grafana dashboard at: /grafana/d/creation-dashboard-678/creation (admin / auto-generated password)
-
+Default password is 'admin' if not overridden.
 {{- end }}

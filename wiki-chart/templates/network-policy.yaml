@@ -1,0 +1,60 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-allow-traffic
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector: {} # Apply to all pods in the namespace
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from any pod in the same namespace (e.g., pod-to-pod communication)
+    - from:
+      - podSelector: {}
+  egress:
+    # Allow DNS requests
+    - to:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow egress to any pod in the same namespace
+    - to:
+      - podSelector: {}
+
+---
+# Specific policy for FastAPI
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-fastapi-policy
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-fastapi
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from Prometheus for scraping metrics
+    - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-prometheus
+      ports:
+      - protocol: TCP
+        port: {{ .Values.fastapi.port }}
+  egress:
+    # Allow to Postgres
+    - to:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: {{ include "wiki-chart.name" . }}-postgres
+      ports:
+      - protocol: TCP
+        port: 5432

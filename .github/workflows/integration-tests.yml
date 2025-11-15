@@ -1,4 +1,4 @@
-name: Integration Tests - Code + DB + API
+name: CI Pipeline - Build, Test, Scan & Deploy
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'wiki-service/**'
-      - 'nebula-aurora-assignment/**'
       - 'wiki-chart/**'
       - '.github/workflows/integration-tests.yml'
   pull_request:
@@ -15,10 +14,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  api-tests:
+  build-and-test:
     runs-on: ubuntu-latest
-    name: FastAPI Tests with PostgreSQL
-    
+    name: Build and Test
+
     services:
       postgres:
         image: postgres:15-alpine
@@ -41,136 +40,72 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
-
-      - name: Install dependencies (wiki-service)
-        run: |
-          cd wiki-service
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
-
-      - name: Wait for PostgreSQL to be ready
-        run: |
-          until nc -z localhost 5432; do
-            echo "Waiting for PostgreSQL..."
-            sleep 1
-          done
-
-      - name: Run API tests (wiki-service)
-        env:
-          DB_USER: postgres
-          DB_PASSWORD: testpass
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: wiki
-        run: |
-          cd wiki-service
-          pytest -v --tb=short || true
-          
-      - name: Test FastAPI endpoints with curl
-        env:
-          DB_USER: postgres
-          DB_PASSWORD: testpass
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: wiki
-        run: |
-          cd wiki-service
-          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
-          sleep 3
-          
-          echo "=== Testing API Endpoints ==="
-          
-          # Health check
-          echo "Testing GET /"
-          curl -s http://localhost:8000/ || echo "Root endpoint check"
-          
-          # Create user
-          echo "Testing POST /users"
-          USER_RESPONSE=$(curl -s -X POST http://localhost:8000/users \
-            -H "Content-Type: application/json" \
-            -d '{"name":"Test User"}')
-          echo "$USER_RESPONSE" || echo "Create user response"
-          
-          # Get user
-          echo "Testing GET /user/1"
-          curl -s http://localhost:8000/user/1 || echo "Get user 1"
-          
-          # Create post
-          echo "Testing POST /posts"
-          POST_RESPONSE=$(curl -s -X POST http://localhost:8000/posts \
-            -H "Content-Type: application/json" \
-            -d '{"user_id":1,"content":"Test post"}')
-          echo "$POST_RESPONSE" || echo "Create post response"
-          
-          # Get post
-          echo "Testing GET /posts/1"
-          curl -s http://localhost:8000/posts/1 || echo "Get post 1"
-          
-          # Metrics
-          echo "Testing GET /metrics"
-          curl -s http://localhost:8000/metrics | head -20 || echo "Metrics endpoint"
-          
-          pkill -f "uvicorn main" || true
-
-  nebula-assignment-tests:
-    runs-on: ubuntu-latest
-    name: Nebula Aurora Assignment Tests
-    
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: wiki
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.13'
+          python-version: '3.11' # Using a more common, stable version
 
       - name: Install dependencies
         run: |
-          cd nebula-aurora-assignment
           pip install --upgrade pip
-          pip install -e . 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+          pip install -r wiki-service/requirements.txt
           pip install pytest pytest-asyncio httpx
 
       - name: Wait for PostgreSQL to be ready
         run: |
-          until nc -z localhost 5432; do
+          sudo apt-get update && sudo apt-get install -y netcat
+          until nc -z 127.0.0.1 5432; do
             echo "Waiting for PostgreSQL..."
             sleep 1
           done
 
-      - name: Run tests (nebula-aurora-assignment)
+      - name: Run tests
         env:
           DB_USER: postgres
           DB_PASSWORD: testpass
-          DB_HOST: localhost
+          DB_HOST: 127.0.0.1
           DB_PORT: 5432
           DB_NAME: wiki
         run: |
-          cd nebula-aurora-assignment
-          pytest -v --tb=short || echo "Tests completed (warnings ignored)"
+          pytest -v --tb=short wiki-service/
+
+      - name: Build and save Docker image
+        run: |
+          docker build -t wiki-service:ci wiki-service/
+          docker save wiki-service:ci -o wiki-service.tar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-service-image
+          path: wiki-service.tar
+
+  scan-image:
+    runs-on: ubuntu-latest
+    name: Scan Docker Image
+    needs: [build-and-test]
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wiki-service-image
+
+      - name: Load Docker image
+        run: docker load -i wiki-service.tar
+
+      - name: Install Trivy and scan image
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: 'wiki-service:ci'
+          format: 'table'
+          exit-code: '1' # Fail on critical/high vulnerabilities
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
 
   helm-integration:
     runs-on: ubuntu-latest
+    needs: [scan-image]
     name: Helm Chart Integration (k3d simulation)
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -180,84 +115,70 @@ jobs:
         with:
           version: '3.13.0'
 
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wiki-service-image
+
+      - name: Load Docker image
+        run: docker load -i wiki-service.tar
+
       - name: Install k3d
-        run: |
-          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          k3d version
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
       - name: Create k3d cluster
-        run: |
-          set +e
-          k3d cluster create test-nebula \
-            --servers 1 \
-            --agents 0 \
-            --wait
-            --image rancher/k3s:v1.31.13-k3s1
-          
-          if [ $? -eq 0 ]; then
-            kubectl cluster-info
-          else
-            echo "Warning: k3d cluster creation failed; continuing with pod checks"
-          fi
-          set -e
+        run: k3d cluster create test-wiki --wait
 
-      - name: Build and import FastAPI image
-        run: |
-          docker build -t wiki-service:0.1.0 ./wiki-service
-          k3d image import wiki-service:0.1.0 -c test-nebula
+      - name: Import FastAPI image into k3d
+        run: k3d image import wiki-service:ci -c test-wiki
 
       - name: Deploy Helm chart
         run: |
-          set +e
+          kubectl create namespace wiki-app
           helm install test-wiki ./wiki-chart \
+            --namespace wiki-app \
             --set fastapi.image.repository=wiki-service \
-            --set fastapi.image.tag=0.1.0 \
+            --set fastapi.image.tag=ci \
             --set fastapi.image.pullPolicy=Never \
+            --set grafana.adminPassword=admin \
             --wait --timeout 5m
-          HELM_RESULT=$?
-          set -e
-          if [ $HELM_RESULT -ne 0 ]; then
-            echo "Warning: Helm deployment failed; continuing with diagnostics"
-          fi
 
       - name: Check deployment status
         run: |
           echo "=== Pod Status ==="
-          kubectl get pods -A
-          
+          kubectl get pods -n wiki-app
+
           echo "=== Service Status ==="
-          kubectl get svc -A
-          
+          kubectl get svc -n wiki-app
+
           echo "=== Deployment Logs (FastAPI) ==="
-          kubectl logs -l app.kubernetes.io/name=wiki-chart-fastapi --tail=20 || echo "Logs unavailable"
+          kubectl logs -n wiki-app -l app.kubernetes.io/name=wiki-chart-fastapi --tail=50
 
       - name: Wait for pods and run tests
         run: |
           echo "Waiting for pods to be ready (timeout: 120s)..."
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=wiki-chart-fastapi --timeout=120s --all-namespaces || true
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=wiki-chart-grafana --timeout=120s --all-namespaces || true
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=wiki-chart-postgres --timeout=120s --all-namespaces || true
-          
+          kubectl wait --for=condition=ready pod -n wiki-app -l app.kubernetes.io/name=wiki-chart-fastapi --timeout=120s
+
           echo "=== Test Job Status ==="
           kubectl get jobs -A
           kubectl get pods -A -l app.kubernetes.io/component=test
-          
+
           echo "=== Test Job Logs ==="
           kubectl logs -l app.kubernetes.io/component=test --tail=50 || echo "Test logs unavailable"
 
       - name: Test FastAPI endpoints via port-forward
         run: |
           echo "=== Testing FastAPI Application ==="
-          
-          # Start port-forward in background
-          kubectl port-forward -n default svc/wiki-chart-fastapi 8080:80 &
+
+          # Start port-forward in the background
+          kubectl port-forward -n wiki-app svc/wiki-chart-fastapi 8080:80 &
           FORWARD_PID=$!
-          sleep 3
-          
+          sleep 5 # Allow time for port-forward to establish
+
           # Health check
           echo "Testing GET / (root endpoint)"
           curl -s -i http://localhost:8080/ || echo "Root endpoint check failed"
-          
+
           # Create user
           echo ""
           echo "Testing POST /users (create user)"
@@ -265,12 +186,12 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"name":"K8s Test User"}')
           echo "$USER_RESPONSE"
-          
+
           # Get user
           echo ""
           echo "Testing GET /users/1 (retrieve user)"
           curl -s http://localhost:8080/users/1 || echo "Get user failed"
-          
+
           # Create post
           echo ""
           echo "Testing POST /posts (create post)"
@@ -278,92 +199,59 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"user_id":1,"content":"Kubernetes test post"}')
           echo "$POST_RESPONSE"
-          
+
           # Get post
           echo ""
           echo "Testing GET /posts/1 (retrieve post)"
           curl -s http://localhost:8080/posts/1 || echo "Get post failed"
-          
+
           # Metrics endpoint
           echo ""
           echo "Testing GET /metrics (Prometheus metrics)"
           curl -s http://localhost:8080/metrics | head -30 || echo "Metrics endpoint failed"
-          
+
           # Cleanup port-forward
-          kill $FORWARD_PID || true
+          kill $FORWARD_PID
 
       - name: Test Grafana dashboard access
         run: |
           echo "=== Testing Grafana Dashboard ==="
-          
+
           # Port-forward to Grafana
-          kubectl port-forward -n default svc/wiki-chart-grafana 3000:80 &
+          kubectl port-forward -n wiki-app svc/wiki-chart-grafana 3000:80 &
           FORWARD_PID=$!
           sleep 3
-          
+
           # Check Grafana health
           echo "Testing Grafana HTTP status:"
           curl -s -i http://localhost:3000/api/health || echo "Grafana health check failed"
-          
+
           echo ""
           echo "Testing Grafana dashboard availability:"
           curl -s -i http://localhost:3000/d/creation-dashboard-678/creation || echo "Dashboard endpoint failed"
-          
+
           echo ""
           echo "Checking for Prometheus datasource:"
           curl -s http://localhost:3000/api/datasources || echo "Datasources check failed"
-          
-          # Cleanup port-forward
-          kill $FORWARD_PID || true
 
-      - name: Verify all services and metrics
-        run: |
-          echo "=== Verifying All Services ==="
-          
-          echo "FastAPI Service:"
-          kubectl get svc wiki-chart-fastapi -o wide || echo "FastAPI service not found"
-          
-          echo ""
-          echo "PostgreSQL Service:"
-          kubectl get svc wiki-chart-postgres -o wide || echo "PostgreSQL service not found"
-          
-          echo ""
-          echo "Prometheus Service:"
-          kubectl get svc wiki-chart-prometheus -o wide || echo "Prometheus service not found"
-          
-          echo ""
-          echo "Grafana Service:"
-          kubectl get svc wiki-chart-grafana -o wide || echo "Grafana service not found"
-          
-          echo ""
-          echo "=== Checking Prometheus Targets ==="
-          kubectl port-forward -n default svc/wiki-chart-prometheus 9090:80 &
-          FORWARD_PID=$!
-          sleep 3
-          
-          echo "Active targets in Prometheus:"
-          curl -s http://localhost:9090/api/v1/targets || echo "Could not fetch Prometheus targets"
-          
-          kill $FORWARD_PID || true
+          # Cleanup port-forward
+          kill $FORWARD_PID
 
       - name: Cleanup k3d cluster
         if: always()
-        run: |
-          k3d cluster delete test-nebula || true
+        run: k3d cluster delete test-wiki
 
   summary:
     runs-on: ubuntu-latest
     name: Test Summary
-    needs: [api-tests, nebula-assignment-tests, helm-integration]
+    needs: [build-and-test, scan-image, helm-integration]
     if: always()
     steps:
       - name: Print summary
         run: |
           echo "=== Integration Test Summary ==="
-          echo "✓ FastAPI + PostgreSQL tests completed"
-          echo "✓ Nebula Aurora assignment tests completed"
-          echo "✓ Helm Chart k3d deployment tests completed"
+          echo "✓ Build and Test job status: ${{ needs.build-and-test.result }}"
+          echo "✓ Image Scan job status: ${{ needs.scan-image.result }}"
+          echo "✓ Helm Integration job status: ${{ needs.helm-integration.result }}"
           echo ""
           echo "Check individual job logs for detailed results."
-
-
