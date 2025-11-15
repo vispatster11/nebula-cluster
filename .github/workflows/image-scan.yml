@@ -26,6 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Scan FastAPI Docker Image
 
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,7 +46,7 @@ jobs:
           load: true
           tags: wiki-fastapi:${{ github.sha }}
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (SARIF output)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: wiki-fastapi:${{ github.sha }}
@@ -51,7 +56,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v4 
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
