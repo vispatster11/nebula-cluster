@@ -192,7 +192,7 @@ jobs:
             --servers 1 \
             --agents 0 \
             --wait
-         #   --image ghcr.io/k3d-io/k3s:latest
+            --image rancher/k3s:v1.31.13-k3s1
           
           if [ $? -eq 0 ]; then
             kubectl cluster-info
@@ -365,4 +365,5 @@ jobs:
           echo "✓ Helm Chart k3d deployment tests completed"
           echo ""
           echo "Check individual job logs for detailed results."
+
 
