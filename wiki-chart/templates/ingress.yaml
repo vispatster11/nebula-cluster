@@ -1,0 +1,62 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  rules:
+  - host: localhost
+    http:
+      paths:
+      # FastAPI endpoints
+      - path: /users
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "wiki-chart.fullname" . }}-fastapi
+            port:
+              number: {{ .Values.fastapi.port }}
+      - path: /posts
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "wiki-chart.fullname" . }}-fastapi
+            port:
+              number: {{ .Values.fastapi.port }}
+      - path: /user
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "wiki-chart.fullname" . }}-fastapi
+            port:
+              number: {{ .Values.fastapi.port }}
+      - path: /metrics
+        pathType: Exact
+        backend:
+          service:
+            name: {{ include "wiki-chart.fullname" . }}-fastapi
+            port:
+              number: {{ .Values.fastapi.port }}
+      # Root/info endpoint
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "wiki-chart.fullname" . }}-fastapi
+            port:
+              number: {{ .Values.fastapi.port }}
+      # Grafana endpoint
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "wiki-chart.fullname" . }}-grafana
+            port:
+              number: 3000

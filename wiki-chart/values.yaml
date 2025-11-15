@@ -1,0 +1,129 @@
+imagePullSecrets: []
+
+# FastAPI Configuration
+fastapi:
+  # Image can be provided as repository:tag or repository@sha256:digest
+  image:
+    repository: "wiki-service"
+    tag: "0.1.0"  # Do NOT use `latest`; pin to a version or digest
+    pullPolicy: Never  # k3d loads images from host, not pulling
+  imagePullSecrets: []
+  port: 8000
+  replicas: 1
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  securityContext:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+  image:
+    repository: "postgres"
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+  auth:
+    username: postgres
+    password: ""  # Auto-generate if empty
+    database: wiki
+  primary:
+    persistence:
+      size: 2Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    allowPrivilegeEscalation: false
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+  image:
+    repository: "prom/prometheus"
+    tag: "v2.48.0"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  retention: 15d
+  storageSize: 2Gi
+  securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  image:
+    repository: "grafana/grafana"
+    tag: "9.0.0"
+    pullPolicy: IfNotPresent
+  # Grafana admin password: leave empty to auto-generate via Helm helper.
+  # If you need a deterministic password for grading, set this value via
+  # --set grafana.adminPassword="my-password" when installing.
+  adminPassword: ""
+  adminUser: admin
+  replicas: 1
+  runAsUser: 472
+  fsGroup: 472
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  persistence:
+    size: 1Gi
+
+# Ingress Configuration
+# Uses Traefik (k3d default) instead of NGINX
+ingress:
+  enabled: true
+  className: "traefik"  # k3d uses Traefik, not NGINX
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: "traefik-remove-path@kubernetescrd"
+  hosts:
+    - host: "localhost"
+      paths:
+        - path: /users
+          pathType: Prefix
+          service: fastapi
+          port: 8000
+        - path: /posts
+          pathType: Prefix
+          service: fastapi
+          port: 8000
+        - path: /metrics
+          pathType: Exact
+          service: fastapi
+          port: 8000
+        - path: /grafana
+          pathType: Prefix
+          service: grafana
+          port: 3000
+
+# Namespace
+namespace: default

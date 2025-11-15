@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-allow-ingress
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: fastapi
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx
+      - podSelector:
+          matchLabels:
+            app: prometheus
+      ports:
+        - protocol: TCP
+          port: {{ .Values.fastapi.port }}
+  egress:
+    - to:
+      - podSelector:
+          matchLabels:
+            app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432

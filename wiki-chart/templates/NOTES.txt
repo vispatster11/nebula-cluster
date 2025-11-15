@@ -1,0 +1,41 @@
+{{- if .Release.Name }}
+Thank you for installing {{ .Chart.Name }}.
+
+Important next steps:
+
+- The FastAPI service image is configured in `values.yaml` under `fastapi.image`.
+- Pin images by digest (e.g. `repo@sha256:...`) for immutable deployments.
+- Scan images in CI using a scanner such as `trivy` before pushing to registry.
+
+To build and push the FastAPI image:
+
+  cd ../wiki-service
+  docker build -t your-registry/wiki-fastapi:0.1.0 .
+  docker push your-registry/wiki-fastapi:0.1.0
+
+To upgrade the chart with a custom image:
+
+  helm upgrade {{ .Release.Name }} . --set fastapi.image.repository=your-registry/wiki-fastapi --set fastapi.image.tag=0.1.0
+
+Credentials Management:
+
+- PostgreSQL and Grafana credentials are automatically generated on first install if not explicitly provided.
+- To set custom credentials, override in values.yaml or via Helm:
+  helm install {{ .Release.Name }} . --set postgresql.auth.password=my-password --set grafana.adminPassword=my-password
+- Generated credentials are stored in Kubernetes Secrets and persist across helm upgrades.
+- To retrieve auto-generated credentials, run:
+  kubectl get secret {{ include "wiki-chart.fullname" . }}-postgres-secret -o jsonpath='{.data.password}' | base64 -d
+  kubectl get secret {{ include "wiki-chart.fullname" . }}-grafana-secret -o jsonpath='{.data.admin-password}' | base64 -d
+
+Security notes:
+
+- Deploy the namespace with Pod Security labels (recommended):
+  kubectl label namespace {{ .Release.Namespace }} pod-security.kubernetes.io/enforce=restricted
+  kubectl label namespace {{ .Release.Namespace }} pod-security.kubernetes.io/audit=restricted
+
+- All pods run as non-root users with dropped capabilities and read-only root filesystems.
+- Consider adding runtime detection (Falco) and an image scanning pipeline.
+
+Access Grafana dashboard at: /grafana/d/creation-dashboard-678/creation (admin / auto-generated password)
+
+{{- end }}

@@ -1,0 +1,108 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-test
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "wiki-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "wiki-chart.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: test
+    spec:
+      serviceAccountName: {{ include "wiki-chart.fullname" . }}-test
+      restartPolicy: Never
+      containers:
+      - name: test
+        image: curlimages/curl:8.1.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          
+          echo "=== Wiki Chart Integration Tests ==="
+          echo ""
+          
+          # Wait for FastAPI service to be ready
+          echo "Waiting for FastAPI service to be ready..."
+          for i in {1..30}; do
+            if curl -s http://{{ include "wiki-chart.fullname" . }}-fastapi:8000/ > /dev/null 2>&1; then
+              echo "✓ FastAPI service is ready"
+              break
+            fi
+            echo "Attempt $i/30: Waiting..."
+            sleep 2
+          done
+          
+          BASE_URL="http://{{ include "wiki-chart.fullname" . }}-fastapi:8000"
+          
+          # Test 1: Root endpoint
+          echo ""
+          echo "Test 1: GET / (root endpoint)"
+          curl -s "$BASE_URL/" | grep -q "User and Post API" && echo "✓ Root endpoint works" || echo "✗ Root endpoint failed"
+          
+          # Test 2: Create user
+          echo ""
+          echo "Test 2: POST /users (create user)"
+          USER_RESPONSE=$(curl -s -X POST "$BASE_URL/users" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "TestUser"}')
+          echo "$USER_RESPONSE" | grep -q '"id"' && echo "✓ Create user works" || echo "✗ Create user failed"
+          
+          # Test 3: Get user
+          echo ""
+          echo "Test 3: GET /user/1 (get user by ID)"
+          curl -s "$BASE_URL/user/1" | grep -q '"name":"TestUser"' && echo "✓ Get user works" || echo "✗ Get user failed"
+          
+          # Test 4: Create post
+          echo ""
+          echo "Test 4: POST /posts (create post)"
+          POST_RESPONSE=$(curl -s -X POST "$BASE_URL/posts" \
+            -H "Content-Type: application/json" \
+            -d '{"user_id": 1, "content": "Test post"}')
+          echo "$POST_RESPONSE" | grep -q '"post_id"' && echo "✓ Create post works" || echo "✗ Create post failed"
+          
+          # Test 5: Get post
+          echo ""
+          echo "Test 5: GET /posts/1 (get post by ID)"
+          curl -s "$BASE_URL/posts/1" | grep -q '"content":"Test post"' && echo "✓ Get post works" || echo "✗ Get post failed"
+          
+          # Test 6: Metrics endpoint
+          echo ""
+          echo "Test 6: GET /metrics (Prometheus metrics)"
+          curl -s "$BASE_URL/metrics" | grep -q "users_created_total" && echo "✓ Metrics endpoint works" || echo "✗ Metrics endpoint failed"
+          
+          echo ""
+          echo "=== All tests passed ==="
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-test
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "wiki-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test

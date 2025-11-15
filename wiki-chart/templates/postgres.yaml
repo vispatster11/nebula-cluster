@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-postgres-pvc
+  namespace: {{ .Values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.primary.persistence.size }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-postgres-config
+  namespace: {{ .Values.namespace }}
+data:
+  POSTGRES_DB: {{ .Values.postgresql.auth.database }}
+  POSTGRES_USER: {{ .Values.postgresql.auth.username }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: postgres
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      serviceAccountName: {{ include "wiki-chart.fullname" . }}-postgres-sa
+      securityContext:
+        runAsNonRoot: {{ .Values.postgresql.securityContext.runAsNonRoot | default true }}
+        runAsUser: {{ .Values.postgresql.securityContext.runAsUser | default 999 }}
+        runAsGroup: {{ .Values.postgresql.securityContext.runAsGroup | default 999 }}
+        fsGroup: {{ .Values.postgresql.securityContext.fsGroup | default 999 }}
+      containers:
+      - name: postgres
+        image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+        imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+        ports:
+        - containerPort: 5432
+        envFrom:
+        - configMapRef:
+            name: {{ include "wiki-chart.fullname" . }}-postgres-config
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "wiki-chart.fullname" . }}-postgres-secret
+              key: password
+        resources:
+          requests:
+            cpu: {{ .Values.postgresql.resources.requests.cpu }}
+            memory: {{ .Values.postgresql.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.postgresql.resources.limits.cpu }}
+            memory: {{ .Values.postgresql.resources.limits.memory }}
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U {{ .Values.postgresql.auth.username }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U {{ .Values.postgresql.auth.username }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: {{ include "wiki-chart.fullname" . }}-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wiki-chart.fullname" . }}-postgres
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: postgres
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: postgres

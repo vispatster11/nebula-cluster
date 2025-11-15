@@ -1,0 +1,8 @@
+asyncpg>=0.29.0
+fastapi>=0.121.0
+greenlet>=3.2.4
+prometheus-client>=0.23.1
+pydantic>=2.12.3
+sqlalchemy>=2.0.44
+slowapi>=0.1.9
+uvicorn[standard]>=0.38.0
