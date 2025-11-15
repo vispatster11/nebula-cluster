@@ -191,8 +191,8 @@ jobs:
           k3d cluster create test-nebula \
             --servers 1 \
             --agents 0 \
-            --wait \
-            --image ghcr.io/k3d-io/k3s:latest
+            --wait
+         #   --image ghcr.io/k3d-io/k3s:latest
           
           if [ $? -eq 0 ]; then
             kubectl cluster-info
@@ -365,3 +365,4 @@ jobs:
           echo "✓ Helm Chart k3d deployment tests completed"
           echo ""
           echo "Check individual job logs for detailed results."
+
