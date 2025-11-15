@@ -25,7 +25,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v3
         with:
-          version: 'latest'
+          version: '3.13.0'
 
       - name: Lint Helm chart
         run: helm lint wiki-chart --strict
@@ -102,7 +102,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@v3
         with:
-          version: 'latest'
+          version: '3.13.0'
 
       - name: Run Helm validation scripts
         run: |

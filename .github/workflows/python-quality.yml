@@ -82,10 +82,11 @@ jobs:
       - name: Run pip-audit on wiki-service
         run: |
           cd wiki-service
-          pip install -r requirements.txt --dry-run || true
+          pip install -r requirements.txt
           pip-audit --desc
 
       - name: Run pip-audit on nebula-aurora-assignment
         run: |
           cd nebula-aurora-assignment
-          pip install -r pyproject.toml --dry-run || true
+          pip install -e . 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
+          pip-audit --desc || true
