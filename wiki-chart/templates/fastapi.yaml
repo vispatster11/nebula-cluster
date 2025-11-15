@@ -2,7 +2,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-fastapi
-  namespace: {{ .Values.namespace }}
   labels:
     {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
@@ -18,7 +17,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-fastapi
-  namespace: {{ .Values.namespace }}
   labels:
     {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:

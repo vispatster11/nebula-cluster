@@ -127,17 +127,18 @@ jobs:
         run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
       - name: Create k3d cluster
-        run: k3d cluster create test-wiki --wait
+        run: k3d cluster create test-wiki --image ghcr.io/k3d-io/k3s:latest --wait
 
       - name: Import FastAPI image into k3d
-        run: k3d image import wiki-service:ci -c test-wiki
+        run: k3d image import wiki-service:0.1.0 -c test-wiki
 
       - name: Deploy Helm chart
         run: |
-          kubectl create namespace wiki-app
+          kubectl create namespace wiki-test
           helm install test-wiki ./wiki-chart \
-            --namespace wiki-app \
+            --namespace wiki-test \
             --set fastapi.image.repository=wiki-service \
+            --set fastapi.image.tag=0.1.0 \
             --set fastapi.image.tag=ci \
             --set fastapi.image.pullPolicy=Never \
             --set grafana.adminPassword=admin \

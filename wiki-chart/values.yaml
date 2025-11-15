@@ -127,4 +127,4 @@ ingress:
 
 # Namespace
 # Leave empty to let Helm install use the target namespace provided at install time
-namespace: "wiki-app"
+namespace: ""
