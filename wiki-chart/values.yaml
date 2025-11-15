@@ -103,8 +103,6 @@ grafana:
 ingress:
   enabled: true
   className: "traefik"  # k3d uses Traefik, not NGINX
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: "traefik-remove-path@kubernetescrd"
   hosts:
     - host: "localhost"
       paths:
@@ -124,7 +122,3 @@ ingress:
           pathType: Prefix
           service: grafana
           port: 3000
-
-# Namespace
-# Leave empty to let Helm install use the target namespace provided at install time
-namespace: ""

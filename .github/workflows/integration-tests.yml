@@ -144,78 +144,53 @@ jobs:
             --set fastapi.image.tag=ci \
             --set fastapi.image.pullPolicy=Never \
             --set grafana.adminPassword=admin \
-            --wait --timeout 5m || echo 'Helm deploy status: '$?
+            --wait --timeout 5m || true
 
       - name: Check deployment status
         run: |
-          echo "=== Pod Status ==="
+          echo "Pod Status"
           kubectl get pods -n wiki-test
-
-          echo "=== Service Status ==="
+          echo "Service Status"
           kubectl get svc -n wiki-test
-
-          echo "=== Deployment Logs (FastAPI) ==="
+          echo "Deployment Logs"
           kubectl logs -n wiki-test -l app.kubernetes.io/instance=test-wiki --tail=50
 
       - name: Wait for pods and run tests
         continue-on-error: true
         run: |
-          echo "Waiting for pods to be ready (timeout: 120s)..."
-          kubectl wait --for=condition=ready pod -n wiki-test -l app.kubernetes.io/instance=test-wiki --timeout=120s || echo 'Pod wait status: '$?
-
-          echo "=== Helm Test Job Status ==="
-          kubectl wait --for=condition=complete job/test-wiki-test -n wiki-test --timeout=60s || echo 'Job wait status: '$?
-
-          echo "=== Helm Test Job Logs ==="
-          kubectl logs job/test-wiki-test -n wiki-test --tail=100 || echo 'No test job logs available'
+          echo "Waiting for pods to be ready"
+          kubectl wait --for=condition=ready pod -n wiki-test -l app.kubernetes.io/instance=test-wiki --timeout=120s || true
+          echo "Helm Test Job Status"
+          kubectl wait --for=condition=complete job/test-wiki-test -n wiki-test --timeout=60s || true
+          echo "Helm Test Job Logs"
+          kubectl logs job/test-wiki-test -n wiki-test --tail=100 || true
 
       - name: Test FastAPI endpoints via port-forward
         continue-on-error: true
         run: |
-          echo "=== Testing FastAPI Application ==="
-
-          # Start port-forward in the background
+          echo "Testing FastAPI Application"
           kubectl port-forward -n wiki-test svc/test-wiki-fastapi 8080:80 &
           FORWARD_PID=$!
           sleep 5
-
-          # Health check
-          echo "Testing GET / (root endpoint)"
-          curl -s -i http://localhost:8080/ --max-time 5 || echo "Root endpoint check failed"
-
-          # Create user
-          echo ""
-          echo "Testing POST /users (create user)"
-          USER_RESPONSE=$(curl -s -X POST http://localhost:8080/users \
-            -H "Content-Type: application/json" \
-            -d '{"name":"K8s Test User"}' --max-time 5)
-          echo "$USER_RESPONSE" || echo "User creation request failed"
-
-          # Cleanup
-          pkill -P $$ || true
+          curl -s -i http://localhost:8080/ --max-time 5 || true
+          echo "Testing user creation"
+          curl -s -X POST http://localhost:8080/users -H "Content-Type: application/json" -d '{"name":"K8s Test User"}' --max-time 5 || true
           kill -9 $FORWARD_PID 2>/dev/null || true
 
       - name: Test Grafana dashboard access
         continue-on-error: true
         run: |
-          echo "=== Testing Grafana Dashboard ==="
-
-          # Port-forward to Grafana
+          echo "Testing Grafana Dashboard"
           kubectl port-forward -n wiki-test svc/test-wiki-grafana 3000:80 &
           FORWARD_PID=$!
           sleep 3
-
-          # Check Grafana health
-          echo "Testing Grafana HTTP status:"
-          curl -s -i http://localhost:3000/api/health --max-time 5 || echo "Grafana health check failed"
-
-          # Cleanup
+          curl -s -i http://localhost:3000/api/health --max-time 5 || true
           kill -9 $FORWARD_PID 2>/dev/null || true
 
       - name: Cleanup k3d cluster
         if: always()
         continue-on-error: true
-        run: k3d cluster delete test-wiki || echo "Cluster cleanup status: $?"
+        run: k3d cluster delete test-wiki || true
 
   summary:
     runs-on: ubuntu-latest
@@ -225,9 +200,7 @@ jobs:
     steps:
       - name: Print summary
         run: |
-          echo "=== Integration Test Summary ==="
-          echo "✓ Build and Test job status: ${{ needs.build-and-test.result }}"
-          echo "✓ Image Scan job status: ${{ needs.scan-image.result }}"
-          echo "✓ Helm Integration job status: ${{ needs.helm-integration.result }}"
-          echo ""
-          echo "Check individual job logs for detailed results."
+          echo "Integration Test Summary"
+          echo "Build and Test job status: ${{ needs.build-and-test.result }}"
+          echo "Image Scan job status: ${{ needs.scan-image.result }}"
+          echo "Helm Integration job status: ${{ needs.helm-integration.result }}"

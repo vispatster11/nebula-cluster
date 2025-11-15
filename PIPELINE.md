@@ -27,7 +27,8 @@ This repository contains a production-like FastAPI service packaged as a Helm ch
 - Trivy image scanning now produces SARIF output (uploaded to Security tab) and a human-readable table. Scans are non-fatal for pipeline stability while vulnerabilities remain visible.
 - Helm lint workflow pinned to a reproducible Helm version; templates validated with `tests/helm-validate.sh`.
 - Integration tests use `k3d` and import the locally-built image; the k3s image used for `k3d cluster create` is pinned to a stable `rancher/k3s` version to avoid upstream flakiness.
-- NetworkPolicy and other Kubernetes templates updated to be namespace-agnostic and to use label selectors that verification scripts expect.
+- **Namespace-agnostic templates**: All Kubernetes resources now use `.Release.Namespace` instead of hardcoded `default` or configurable `.Values.namespace`, ensuring proper multi-namespace deployments without requiring manual namespace configuration.
+- **Cleaned up chart structure**: Removed duplicate `networkpolicy.yaml` file; kept single, well-defined `network-policy.yaml` with proper namespace and label selectors for verification scripts.
 
 ---
 
@@ -47,11 +48,13 @@ docker push your-registry/wiki-fastapi:0.1.0
 
 2. Update `wiki-chart/values.yaml` or pass `--set` overrides to point to your image (avoid `:latest`).
 
-3. Install the chart:
+3. Install the chart (specify a namespace or use default):
 
 ```powershell
 cd wiki-chart
-helm install wiki-service . --namespace default
+helm install wiki-service . --namespace wiki-prod
+# or use default namespace:
+helm install wiki-service .
 ```
 
 4. Verify resources:
@@ -105,8 +108,9 @@ bash verify-pipeline-fixes.sh
 
 ## Troubleshooting Highlights
 
-- If Helm installs fail due to namespace mismatches, ensure `helm install --namespace <ns>` is used and templates do not hardcode `metadata.namespace`.
+- If Helm installs fail, ensure `helm install --namespace <ns>` is specified. All Helm templates are namespace-agnostic and will automatically use the namespace provided at install time via `--namespace` flag (defaults to current kubectl context namespace if not specified).
 - If k3d cluster creation fails in CI, verify the `rancher/k3s` image tag in `.github/workflows/integration-tests.yml` (we now use `rancher/k3s:v1.31.13-k3s1`).
+- Verify no duplicate template files exist in `wiki-chart/templates/` and that all templates properly reference `.Release.Namespace` for namespace configuration.
 
 ---
 
