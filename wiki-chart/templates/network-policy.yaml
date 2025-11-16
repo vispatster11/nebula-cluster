@@ -70,12 +70,11 @@ spec:
       ports:
         - protocol: TCP
           port: 5432
-    # Allow DNS requests for any external communication
+    # Allow DNS requests for service discovery
     - to:
-        - namespaceSelector: {}
-          podSelector:
+        - namespaceSelector:
             matchLabels:
-              k8s-app: kube-dns
+              kubernetes.io/metadata.name: kube-system
       ports:
         - protocol: UDP
           port: 53
