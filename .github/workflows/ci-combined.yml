@@ -202,7 +202,8 @@ jobs:
           kubectl describe pvc -n ci-test
           echo "--- Events in ci-test namespace ---"
           kubectl get events -n ci-test --sort-by='.lastTimestamp'
-          kubectl describe pods -n ci-test
+          echo "--- Describing all deployments in ci-test namespace ---"
+          kubectl describe deployment -n ci-test
           echo "--- Logs for all pods in ci-test namespace ---"
           for pod in $(kubectl get pods -n ci-test -o jsonpath='{.items[*].metadata.name}'); do
             echo "--- Logs for $pod ---"
