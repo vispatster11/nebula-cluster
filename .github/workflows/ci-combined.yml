@@ -123,7 +123,7 @@ jobs:
           
           echo "Waiting for local-path-provisioner to be ready..."
           # This is the crucial step to prevent a race condition before helm install
-          kubectl wait --for=condition=ready pod -l app=local-path-provisioner -n kube-system --timeout=120s
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=local-path-provisioner -n kube-system --timeout=120s
 
       - name: Download and import image
         uses: actions/download-artifact@v4
@@ -152,23 +152,10 @@ jobs:
       - name: Wait for services to be ready
         id: wait-for-pods
         run: |
-          echo "Waiting for all pods to be in a Ready state..."
-          END_TIME=$((SECONDS + 300)) # 5 minute timeout
-          while [ $SECONDS -lt $END_TIME ]; do
-            echo "--- Pod Statuses ---"
-            kubectl get pods -n ci-test
-            READY_PODS=$(kubectl get pods -n ci-test -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}' | tr ' ' '\n' | grep -c True)
-            TOTAL_PODS=$(kubectl get pods -n ci-test --no-headers | wc -l)
-            if [ "$READY_PODS" -eq "$TOTAL_PODS" ] && [ "$TOTAL_PODS" -gt "0" ]; then
-              echo "All pods are ready!"
-              kubectl get pods -n ci-test
-              exit 0
-            fi
-            echo "--------------------"
-            sleep 10
-          done
-          echo "Timeout waiting for pods to become ready."
-          exit 1
+          echo "Waiting for all deployments to be ready..."
+          # Wait for the main application deployments to become available.
+          # This is more reliable than checking all pods, as it ignores the test job.
+          kubectl wait --for=condition=Available -n ci-test deployment --all --timeout=5m
 
       - name: Debug Pods on Failure
         if: failure() && steps.wait-for-pods.outcome == 'failure'
@@ -188,73 +175,31 @@ jobs:
             echo "----------------------"
           done
           
-      - name: Run End-to-End Tests
+      - name: Run Application Tests (helm test)
         run: |
-            # --- Start E2E Test Script ---
-            echo "--- Starting End-to-End Tests ---"
-            
-            # Set up port forwarding in the background
-            kubectl port-forward --namespace ci-test svc/ci-release-wiki-chart-fastapi 8080:8000 >/dev/null 2>&1 &
-            sleep 5 # Allow time for port-forward to establish
+          # Use the built-in Helm test runner to execute the tests defined in test-job.yaml
+          # This is the standard, idiomatic way to run tests with Helm.
+          helm test ci-release --namespace ci-test --logs
 
-            BASE_URL="http://localhost:8080"
-            SUCCESS_COUNT=0
-            FAIL_COUNT=0
+      - name: Test Ingress and Grafana
+        run: |
+          echo "--- Testing Ingress and Grafana Dashboard ---"
+          # Set up port forwarding to the k3d ingress controller
+          kubectl port-forward --namespace kube-system service/k3d-ci-cluster-serverlb 8080:80 >/dev/null 2>&1 &
+          sleep 5 # Allow time for port-forward to establish
 
-            # Helper function for tests
-            run_test() {
-              if eval "$1"; then
-                echo "✓ PASSED: $2"
-                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-              else
-                echo "✗ FAILED: $2"
-                FAIL_COUNT=$((FAIL_COUNT + 1))
-              fi
-            }
+          BASE_URL="http://localhost:8080"
 
-            # 1. Test Root Endpoint
-            run_test "curl -s --fail $BASE_URL/ | grep -q 'User and Post API'" "Root endpoint is accessible"
-
-            # 2. Test User Creation
-            USER_ID=$(curl -s -X POST "$BASE_URL/users" -H "Content-Type: application/json" -d '{"name": "E2E Test User"}' | jq -r '.id')
-            run_test "[[ ! -z '$USER_ID' && '$USER_ID' != 'null' ]]" "POST /users creates a user"
-
-            # 3. Test Get User
-            run_test "curl -s --fail $BASE_URL/user/$USER_ID | grep -q 'E2E Test User'" "GET /user/{id} retrieves the correct user"
-
-            # 4. Test Post Creation
-            POST_ID=$(curl -s -X POST "$BASE_URL/posts" -H "Content-Type: application/json" -d '{\"user_id\": '$USER_ID', \"content\": \"E2E post content\"}' | jq -r '.post_id')
-            run_test "[[ ! -z '$POST_ID' && '$POST_ID' != 'null' ]]" "POST /posts creates a post"
-
-            # 5. Test Get Post
-            run_test "curl -s --fail $BASE_URL/posts/$POST_ID | grep -q 'E2E post content'" "GET /posts/{id} retrieves the correct post"
-
-            # 6. Test Metrics Endpoint
-            METRICS=$(curl -s --fail $BASE_URL/metrics)
-            run_test "echo '$METRICS' | grep -q 'users_created_total'" "GET /metrics exposes users_created_total"
-            run_test "echo '$METRICS' | grep -q 'posts_created_total'" "GET /metrics exposes posts_created_total"
-
-            # 7. Test Grafana Dashboard Endpoint (with dynamic password retrieval)
-            echo "Retrieving Grafana admin password from secret..."
-            GRAFANA_PASSWORD=$(kubectl get secret --namespace ci-test ci-release-wiki-chart-grafana-secret -o jsonpath="{.data.admin-password}" | base64 --decode)
-            
-            echo "Testing Grafana dashboard access..."
-            # Check for a 200 OK, which confirms the service is working.
-            run_test "curl -s -o /dev/null -w '%{http_code}' -u admin:'$GRAFANA_PASSWORD' $BASE_URL/grafana/d/creation-dashboard-678/creation | grep -q '200'" "GET /grafana/d/creation-dashboard-678/creation is accessible"
-
-            # --- Test Summary ---
-            echo "--- E2E Test Summary ---"
-            echo "Passed: $SUCCESS_COUNT"
-            echo "Failed: $FAIL_COUNT"
-            echo "------------------------"
-
-            if [ "$FAIL_COUNT" -ne 0 ]; then
-              echo "E2E tests failed. Exiting."
-              exit 1
-            else
-              echo "All E2E tests passed successfully!"
-            fi
-            # --- End E2E Test Script ---
+          echo "Testing Grafana dashboard access..."
+          # Check for a 200 OK, which confirms the ingress and service are working.
+          # The -u admin:admin is required by the assignment.
+          http_code=$(curl -s -o /dev/null -w '%{http_code}' -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
+          if [ "$http_code" -eq 200 ]; then
+            echo "✓ PASSED: Grafana dashboard is accessible via ingress with status 200."
+          else
+            echo "✗ FAILED: Expected status 200 for Grafana dashboard via ingress, but got $http_code."
+            exit 1
+          fi
 
       - name: Cleanup k3d cluster
         if: always() # Always run cleanup, even if tests fail
