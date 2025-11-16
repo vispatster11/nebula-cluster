@@ -11,10 +11,8 @@ FastAPI + PostgreSQL + Prometheus + Grafana deployed to Kubernetes with Helm.
 
 ## CI Pipeline
 
-This project uses a single, consolidated CI pipeline defined in `.github/workflows/ci-combined.yml`.
-
-See `PIPELINE.md` for a detailed explanation of the pipeline structure and jobs.
+This project uses a single, consolidated CI pipeline. See `PIPELINE.md` for a detailed explanation of the pipeline structure, jobs, and local deployment steps.
 
 ## Getting Started
 
-See `PIPELINE.md` for full deployment and testing guide.
+See `PIPELINE.md` for the full deployment and testing guide.
