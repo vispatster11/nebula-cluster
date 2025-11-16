@@ -33,14 +33,13 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
-    # Allow from Ingress Controller (Traefik in k3d)
+    # Allow from the Ingress Controller.
+    # These labels should be configured in values.yaml to match your cluster's Ingress Controller.
     - from:
         - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
+            matchLabels: {{ .Values.networkPolicy.ingressController.namespaceLabels | toYaml | nindent 14 }}
           podSelector:
-            matchLabels:
-              app.kubernetes.io/name: traefik
+            matchLabels: {{ .Values.networkPolicy.ingressController.podLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
@@ -110,14 +109,13 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Allow from Ingress Controller (Traefik in k3d)
+    # Allow from the Ingress Controller.
+    # These labels should be configured in values.yaml to match your cluster's Ingress Controller.
     - from:
         - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
+            matchLabels: {{ .Values.networkPolicy.ingressController.namespaceLabels | toYaml | nindent 12 }}
           podSelector:
-            matchLabels:
-              app.kubernetes.io/name: traefik
+            matchLabels: {{ .Values.networkPolicy.ingressController.podLabels | toYaml | nindent 12 }}
     # Allow from the test job
     - from:
         - podSelector:

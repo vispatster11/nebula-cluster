@@ -43,3 +43,15 @@ Grafana Password:
 NOTE: For production, it is highly recommended to set your own passwords via the `values.yaml` file or with `--set` flags during installation, for example:
   --set postgresql.auth.password=YOUR_POSTGRES_PASSWORD
   --set grafana.adminPassword=YOUR_GRAFANA_PASSWORD
+
+---
+Portability Notes:
+
+This chart uses NetworkPolicies that need to allow traffic from your cluster's
+Ingress Controller. The labels for the Ingress Controller are configurable in
+`values.yaml` under the `networkPolicy.ingressController` section.
+
+The default values are set for k3d's default Traefik Ingress Controller.
+If you are deploying to a different environment (e.g., GKE, AKS, or a cluster
+with a different Ingress Controller), you will need to update these values
+to match the labels of your Ingress Controller's pods and namespace.

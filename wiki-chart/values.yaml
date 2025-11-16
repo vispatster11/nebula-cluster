@@ -129,3 +129,15 @@ ingress:
           pathType: Prefix
           service: grafana
           port: 3000
+
+# NetworkPolicy settings
+networkPolicy:
+  # Labels for selecting the Ingress Controller pods and their namespace.
+  # This allows the NetworkPolicy to be portable across different clusters (k3d, GKE, AKS, etc.)
+  ingressController:
+    # Labels of the namespace where the ingress controller is running
+    namespaceLabels:
+      kubernetes.io/metadata.name: kube-system
+    # Labels of the ingress controller pods
+    podLabels:
+      app.kubernetes.io/name: traefik
