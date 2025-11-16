@@ -145,30 +145,34 @@ jobs:
             --set grafana.adminPassword=admin # Set the Grafana password as required by the assignment
 
       - name: Show Cluster State and Events
+        id: watch-pods
         run: |
           NAMESPACE=ci-test
           DURATION=240  # total duration in seconds (4 minutes)
-          INTERVAL=10   # interval to refresh resources in seconds
-          EVENT_INTERVAL=60  # interval to show events
+          INTERVAL=15   # interval to check resources in seconds
 
-          echo "--- Watching resources in namespace $NAMESPACE ---"
+          echo "--- Monitoring pod readiness in namespace $NAMESPACE ---"
           END=$((SECONDS+DURATION))
 
           while [ $SECONDS -lt $END ]; do
-            echo "--- Resources at $(date) ---"
-            kubectl get all -n $NAMESPACE
-            # Show events every EVENT_INTERVAL
-            if [ $((SECONDS % EVENT_INTERVAL)) -lt $INTERVAL ]; then
-              echo "--- Events at $(date) ---"
-              kubectl get events -n $NAMESPACE --sort-by='.metadata.creationTimestamp'
+            # Get a list of all pod statuses and check for any that are not Running or Succeeded
+            BAD_PODS=$(kubectl get pods -n $NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{":"}{.status.phase}{"\n"}{end}' | grep -v -e "Running" -e "Succeeded" || true)
+
+            if [ -z "$BAD_PODS" ]; then
+              echo "✓ All pods are in a 'Running' or 'Succeeded' state."
+              kubectl get pods -n $NAMESPACE
+              exit 0
+            else
+              echo "--- Found non-ready pods. Watching cluster state... ---"
+              echo "$BAD_PODS"
+              echo "--- Events ---"
+              kubectl get events -n $NAMESPACE --sort-by='.metadata.creationTimestamp' | tail -n 10
             fi
             sleep $INTERVAL
           done
 
-          echo "--- Final cluster state ---"
-          kubectl get all -n $NAMESPACE
-          kubectl get events -n $NAMESPACE --sort-by='.metadata.creationTimestamp'
-          echo "------------------------------------------------"
+          echo "::error::Timeout waiting for all pods to become ready."
+          exit 1
 
       - name: Wait for services to be ready
         id: wait-for-pods
