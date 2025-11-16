@@ -121,6 +121,9 @@ spec:
               {{- range $key, $value := .Values.networkPolicy.ingressController.podLabels }}
               {{ $key }}: {{ $value | quote }}
               {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.grafana.port }}
     # Allow from the test job
     - from:
         - podSelector:

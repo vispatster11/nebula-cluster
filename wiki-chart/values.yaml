@@ -77,9 +77,8 @@ prometheus:
       cpu: 500m
       memory: 1Gi
   retention: 15d
-  storageSize: 2Gi
-  # Storage class used for Prometheus PVC in k3d
-  storageClass: "local-path"
+  persistence:
+    size: 2Gi
   securityContext:
     runAsNonRoot: true
     allowPrivilegeEscalation: false

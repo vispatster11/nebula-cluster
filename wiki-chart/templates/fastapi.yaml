@@ -11,6 +11,7 @@ spec:
     targetPort: {{ .Values.fastapi.port }}
     protocol: TCP
   selector:
+    {{- .Values.fastapi.selectorLabels | toYaml | nindent 4 }}
     {{- include "wiki-chart.selectorLabels" . | nindent 4 }}
 ---
 apiVersion: apps/v1
@@ -27,6 +28,7 @@ spec:
   template:
     metadata:
       labels:
+        {{- .Values.fastapi.selectorLabels | toYaml | nindent 8 }}
         {{- include "wiki-chart.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "wiki-chart.fullname" . }}-fastapi-sa

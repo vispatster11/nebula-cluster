@@ -134,8 +134,8 @@ spec:
           echo "Test 7: GET /api/health (Grafana health)"
           GRAFANA_URL="http://{{ include "wiki-chart.fullname" . }}-grafana:{{ .Values.grafana.port }}"
           RESPONSE=$(curl -s --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} "$GRAFANA_URL/api/health")
-          echo "Response: $RESPONSE"
-          if echo "$RESPONSE" | grep -q '"database":"ok"'; then
+          echo "Response: '$RESPONSE'"
+          if echo "$RESPONSE" | grep -q '"database": *"ok"'; then
             echo "✓ Grafana health endpoint works"
           else
             echo "✗ Grafana health endpoint failed"
@@ -148,7 +148,7 @@ spec:
           PROMETHEUS_URL="http://{{ include "wiki-chart.fullname" . }}-prometheus:{{ .Values.prometheus.port }}"
           RESPONSE=$(curl -s --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} "$PROMETHEUS_URL/-/healthy")
           echo "Response: $RESPONSE"
-          if echo "$RESPONSE" | grep -q "Prometheus is Healthy."; then
+          if echo "$RESPONSE" | grep -q "Prometheus Server is Healthy."; then
             echo "✓ Prometheus health endpoint works"
           else
             echo "✗ Prometheus health endpoint failed"
