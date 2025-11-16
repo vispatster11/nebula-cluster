@@ -4,20 +4,19 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'wiki-service/Dockerfile'
-      - 'wiki-service/requirements.txt'
+      - 'wiki-service/**'
       - '.github/workflows/ci-3.yml'
 
 jobs:
-  scan:
-    name: Scan FastAPI Docker Image
+  image-scan:
+    name: Docker Image Security Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t wiki-service:ci-scan ./wiki-service
+        run: docker build -t wiki-service:ci-scan wiki-service/
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

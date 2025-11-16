@@ -82,8 +82,8 @@ jobs:
       - name: Create k3d cluster
         uses: k3d-io/k3d-action@v2.1.0
         with:
-          cluster-name: 'ci-test-cluster'
-          args: '--image rancher/k3s:v1.28.8-k3s1'
+          cluster-name: 'ci-cluster'
+          args: '--image rancher/k3s:v1.29.4-k3s1'
 
       - name: Build and import image into k3d
         run: |
@@ -96,7 +96,6 @@ jobs:
             --namespace default \
             --set fastapi.image.tag=ci-test \
             --set fastapi.image.pullPolicy=Never \
-            --set grafana.adminPassword=admin \
             --wait --timeout 5m
 
       - name: Verify deployment
@@ -110,5 +109,12 @@ jobs:
 
           echo "--- Testing API endpoint ---"
           kubectl port-forward svc/ci-release-wiki-chart-fastapi 8080:8000 &
-          sleep 5
-          curl -f http://localhost:8080/users -X POST -H "Content-Type: application/json" -d '{"name": "testuser"}'
+          sleep 5 # Wait for port-forward to establish
+          for i in {1..10}; do
+            if curl -f http://localhost:8080/users -X POST -H "Content-Type: application/json" -d '{"name": "testuser"}'; then
+              echo "API test successful."
+              break
+            fi
+            echo "API test failed, retrying in 5s..."
+            sleep 5
+          done

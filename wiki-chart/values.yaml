@@ -2,8 +2,6 @@ imagePullSecrets: []
 
 # FastAPI Configuration
 fastapi:
-  # Image name can be changed via --set fastapi.image_name="myrepo/myimage:tag"
-  image_name: "wiki-service:0.1.0"
   image:
     repository: "wiki-service"
     tag: "0.1.0"  # Do NOT use `latest`; pin to a version or digest

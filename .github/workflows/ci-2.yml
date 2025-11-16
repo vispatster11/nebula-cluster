@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '**/*.py'
+      - 'wiki-service/**'
       - '.github/workflows/ci-2.yml'
 
 jobs:
-  quality-and-security:
-    name: Run Python Linters and Scanners
+  python-quality:
+    name: Python Code Quality & Security
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -26,11 +26,8 @@ jobs:
           pip install -r wiki-service/requirements.txt
           pip install bandit black ruff
 
-      - name: Run Black Formatter
-        run: black --check wiki-service/
-
-      - name: Run Ruff Linter
-        run: ruff check wiki-service/
-
-      - name: Run Bandit Security Scanner
-        run: bandit -r wiki-service/
+      - name: Run Black, Ruff, and Bandit
+        run: |
+          black --check wiki-service/
+          ruff check wiki-service/
+          bandit -r wiki-service/
