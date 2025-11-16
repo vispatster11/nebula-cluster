@@ -108,8 +108,6 @@ jobs:
 
       - name: Configure k3d local-path provisioner
         run: |
-          # This ConfigMap tells the k3s local-path provisioner where to create PersistentVolumes.
-          # It must match the path mounted in the 'k3d cluster create' command.
           cat <<EOF | kubectl apply -f -
           apiVersion: v1
           kind: ConfigMap
@@ -120,10 +118,12 @@ jobs:
             config.json: |
               { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
           EOF
-          
+
           echo "Waiting for local-path-provisioner to be ready..."
-          # This is the crucial step to prevent a race condition before helm install
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=local-path-provisioner -n kube-system --timeout=120s
+          kubectl wait --for=condition=ready pod \
+            -l k8s-app=local-path-provisioner \
+            -n kube-system \
+            --timeout=120s
 
       - name: Download and import image
         uses: actions/download-artifact@v4
