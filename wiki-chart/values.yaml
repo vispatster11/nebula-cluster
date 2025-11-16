@@ -152,3 +152,7 @@ networkPolicy:
 test:
   selectorLabels:
     app.kubernetes.io/component: test
+  # Timeouts for curl commands within the test job
+  curl:
+    connectTimeout: 5  # seconds to wait for connection
+    maxTime: 10        # seconds for the entire operation
