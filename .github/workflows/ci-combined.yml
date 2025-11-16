@@ -24,12 +24,20 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('wiki-service/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r wiki-service/requirements.txt bandit black ruff
 
-      - name: Run Linters and Scanners
+      - name: Run Linters and Security Scan
         run: |
           black --check wiki-service/
           ruff check wiki-service/
@@ -38,12 +46,19 @@ jobs:
   image-scan:
     name: Docker Image Scan
     runs-on: ubuntu-latest
+    outputs:
+      image_name: wiki-service
+      image_tag: ci-scan-${{ github.run_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t wiki-service:ci-scan wiki-service/
+        run: |
+          IMAGE_TAG="ci-scan-${{ github.run_id }}"
+          docker build -t "wiki-service:${IMAGE_TAG}" wiki-service/
+          docker save "wiki-service:${IMAGE_TAG}" -o wiki-service.tar
+          echo "Image saved to wiki-service.tar"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -54,6 +69,12 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-service-image
+          path: wiki-service.tar
 
   helm-lint:
     name: Helm Chart Validation
@@ -82,21 +103,30 @@ jobs:
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
           k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1
 
-      - name: Build and import image
+      - name: Download and import image
+        uses: actions/download-artifact@v4
+        with:
+          name: wiki-service-image
+
+      - name: Load image into k3d
         run: |
-          docker build -t wiki-service:ci-test wiki-service/
-          k3d image import wiki-service:ci-test -c ci-cluster
+          k3d image load wiki-service.tar -c ci-cluster
 
       - name: Install Helm chart
         run: |
-          helm install ci-release ./wiki-chart \
-            --set fastapi.image.tag=ci-test \
+          # Use a dedicated namespace for production-like isolation
+          kubectl create namespace ci-test
+          helm install ci-release ./wiki-chart --namespace ci-test \
+            --set fastapi.image.tag=${{ needs.image-scan.outputs.image_tag }} \
             --set fastapi.image.pullPolicy=Never
 
       - name: Wait for services to be ready
         run: |
-          echo "Waiting for all pods to be in a Ready state..."
-          kubectl wait --for=condition=Ready pod --all --timeout=5m
+          echo "Waiting for FastAPI deployment to be ready..."
+          # Target the specific deployment for a more reliable wait
+          kubectl wait --namespace ci-test \
+            --for=condition=available deployment/ci-release-wiki-chart-fastapi \
+            --timeout=3m
 
       - name: Run End-to-End Tests
         run: |
@@ -104,7 +134,7 @@ jobs:
             echo "--- Starting End-to-End Tests ---"
             
             # Set up port forwarding in the background
-            kubectl port-forward svc/ci-release-wiki-chart-fastapi 8080:8000 >/dev/null 2>&1 &
+            kubectl port-forward --namespace ci-test svc/ci-release-wiki-chart-fastapi 8080:8000 >/dev/null 2>&1 &
             sleep 5 # Allow time for port-forward to establish
 
             BASE_URL="http://localhost:8080"
@@ -144,9 +174,13 @@ jobs:
             run_test "echo '$METRICS' | grep -q 'users_created_total'" "GET /metrics exposes users_created_total"
             run_test "echo '$METRICS' | grep -q 'posts_created_total'" "GET /metrics exposes posts_created_total"
 
-            # 7. Test Grafana Dashboard Endpoint
-            # We check for a 200 OK, which confirms the ingress and service are working.
-            run_test "curl -s -o /dev/null -w '%{http_code}' -u admin:admin $BASE_URL/grafana/d/creation-dashboard-678/creation | grep -q '200'" "GET /grafana/d/creation-dashboard-678/creation is accessible"
+            # 7. Test Grafana Dashboard Endpoint (with dynamic password retrieval)
+            echo "Retrieving Grafana admin password from secret..."
+            GRAFANA_PASSWORD=$(kubectl get secret --namespace ci-test ci-release-wiki-chart-grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+            
+            echo "Testing Grafana dashboard access..."
+            # Check for a 200 OK, which confirms the service is working.
+            run_test "curl -s -o /dev/null -w '%{http_code}' -u admin:'$GRAFANA_PASSWORD' $BASE_URL/grafana/d/creation-dashboard-678/creation | grep -q '200'" "GET /grafana/d/creation-dashboard-678/creation is accessible"
 
             # --- Test Summary ---
             echo "--- E2E Test Summary ---"
@@ -161,3 +195,8 @@ jobs:
               echo "All E2E tests passed successfully!"
             fi
             # --- End E2E Test Script ---
+
+      - name: Cleanup k3d cluster
+        if: always() # Always run cleanup, even if tests fail
+        run: |
+          k3d cluster delete ci-cluster
