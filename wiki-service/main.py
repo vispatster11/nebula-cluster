@@ -16,12 +16,15 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="User and Post API",
     description="A secure Wikipedia-like API service with rate limiting and PostgreSQL backend",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add rate limiter to app
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, lambda request, exc: Response("Rate limit exceeded", status_code=429))
+app.add_exception_handler(
+    RateLimitExceeded,
+    lambda request, exc: Response("Rate limit exceeded", status_code=429),
+)
 
 
 # Create database tables on startup
@@ -33,7 +36,9 @@ async def startup():
 
 @app.post("/users", response_model=UserResponse)
 @limiter.limit("10/minute")
-async def create_user(request: Request, user: UserCreate, db: AsyncSession = Depends(get_db)):
+async def create_user(
+    request: Request, user: UserCreate, db: AsyncSession = Depends(get_db)
+):
     """
     Create a new user.
 
@@ -54,15 +59,15 @@ async def create_user(request: Request, user: UserCreate, db: AsyncSession = Dep
     users_created_total.inc()
 
     return UserResponse(
-        id=new_user.id,
-        name=new_user.name,
-        created_time=new_user.created_time
+        id=new_user.id, name=new_user.name, created_time=new_user.created_time
     )
 
 
 @app.post("/posts", response_model=PostResponse)
 @limiter.limit("20/minute")
-async def create_post(request: Request, post: PostCreate, db: AsyncSession = Depends(get_db)):
+async def create_post(
+    request: Request, post: PostCreate, db: AsyncSession = Depends(get_db)
+):
     """
     Create a new post under a given user.
 
@@ -95,7 +100,7 @@ async def create_post(request: Request, post: PostCreate, db: AsyncSession = Dep
         post_id=new_post.id,
         content=new_post.content,
         user_id=new_post.user_id,
-        created_time=new_post.created_time
+        created_time=new_post.created_time,
     )
 
 
@@ -116,11 +121,7 @@ async def get_user(request: Request, id: int, db: AsyncSession = Depends(get_db)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(
-        id=user.id,
-        name=user.name,
-        created_time=user.created_time
-    )
+    return UserResponse(id=user.id, name=user.name, created_time=user.created_time)
 
 
 @app.get("/posts/{id}", response_model=PostResponse)
@@ -145,7 +146,7 @@ async def get_post(request: Request, id: int, db: AsyncSession = Depends(get_db)
         post_id=post.id,
         content=post.content,
         user_id=post.user_id,
-        created_time=post.created_time
+        created_time=post.created_time,
     )
 
 
@@ -160,8 +161,8 @@ async def root(request: Request):
             "POST /posts": "Create a new post",
             "GET /user/{id}": "Get user by ID",
             "GET /posts/{id}": "Get post by ID",
-            "GET /metrics": "Prometheus metrics"
-        }
+            "GET /metrics": "Prometheus metrics",
+        },
     }
 
 

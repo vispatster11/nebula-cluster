@@ -29,27 +29,29 @@ async def test_db():
     db_host = os.getenv("DB_HOST", "127.0.0.1")
     db_port = os.getenv("DB_PORT", "5432")
     db_name = os.getenv("DB_NAME", "wiki")
-    
-    DATABASE_URL = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    
+
+    DATABASE_URL = (
+        f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    )
+
     engine = create_async_engine(DATABASE_URL, echo=False, future=True)
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    
+
     AsyncSessionLocal = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
-    
+
     async def override_get_db():
         async with AsyncSessionLocal() as session:
             yield session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     yield engine
-    
+
     await engine.dispose()
 
 
@@ -87,7 +89,7 @@ async def test_get_user(async_client):
     # Create user first
     create_response = await async_client.post("/users", json={"name": "Get Test"})
     user_id = create_response.json()["id"]
-    
+
     # Get user
     response = await async_client.get(f"/user/{user_id}")
     assert response.status_code == 200
@@ -102,11 +104,10 @@ async def test_create_post(async_client):
     # Create user first
     user_response = await async_client.post("/users", json={"name": "Post Author"})
     user_id = user_response.json()["id"]
-    
+
     # Create post
     response = await async_client.post(
-        "/posts",
-        json={"user_id": user_id, "content": "Test post content"}
+        "/posts", json={"user_id": user_id, "content": "Test post content"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -122,13 +123,12 @@ async def test_get_post(async_client):
     # Create user and post
     user_response = await async_client.post("/users", json={"name": "Post Retriever"})
     user_id = user_response.json()["id"]
-    
+
     post_response = await async_client.post(
-        "/posts",
-        json={"user_id": user_id, "content": "Content to retrieve"}
+        "/posts", json={"user_id": user_id, "content": "Content to retrieve"}
     )
     post_id = post_response.json()["post_id"]
-    
+
     # Get post
     response = await async_client.get(f"/posts/{post_id}")
     assert response.status_code == 200
@@ -144,4 +144,7 @@ async def test_metrics_endpoint(async_client):
     assert response.status_code == 200
     assert "text/plain" in response.headers["content-type"]
     # Should contain counter metrics
-    assert b"users_created_total" in response.content or b"posts_created_total" in response.content
+    assert (
+        b"users_created_total" in response.content
+        or b"posts_created_total" in response.content
+    )
