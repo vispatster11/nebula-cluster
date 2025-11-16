@@ -231,9 +231,21 @@ jobs:
           echo "--- Testing Ingress Endpoints ---"
           # Set up port forwarding to the k3d ingress controller
           kubectl port-forward --namespace kube-system service/k3d-ci-cluster-serverlb 8080:80 >/dev/null 2>&1 &
+          PORT_FORWARD_PID=$!
           sleep 5 # Allow time for port-forward to establish
 
           BASE_URL="http://localhost:8080"
+
+          # Wait for ingress to be ready (up to 60s)
+          for i in {1..12}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: localhost" "$BASE_URL/")
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "✓ Ingress is ready."
+              break
+            fi
+            echo "Waiting for ingress to be ready... ([33m$i/12[0m)"
+            sleep 5
+          done
 
           # Test 1: FastAPI root endpoint
           echo "Testing FastAPI root endpoint..."
@@ -244,25 +256,25 @@ jobs:
             echo "✓ PASSED: FastAPI root is accessible via ingress with status 200."
           else
             echo "✗ FAILED: Expected status 200 for FastAPI root, but got $HTTP_CODE."
+            kill $PORT_FORWARD_PID
             exit 1
           fi
           echo ""
 
           # Test 2: Grafana dashboard
           echo "Testing Grafana dashboard access..."
-          # Check for a 200 OK, which confirms the ingress and service are working.
-          # The -u admin:admin is required by the assignment.
-          # We expect a 302 redirect to the login page if not authenticated, but a 200 if auth works.
           RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" --connect-timeout 5 --max-time 10 -H "Host: localhost" -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
           HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | awk -F: '{print $2}')
-          # We don't print the body for Grafana as it's large HTML. The status code is sufficient.
           echo "Response Status: $HTTP_CODE"
           if [ "$HTTP_CODE" -eq 200 ]; then
             echo "✓ PASSED: Grafana dashboard is accessible via ingress with status 200."
           else
             echo "✗ FAILED: Expected status 200 for Grafana dashboard via ingress, but got $HTTP_CODE."
+            kill $PORT_FORWARD_PID
             exit 1
           fi
+
+          kill $PORT_FORWARD_PID
 
       - name: Cleanup k3d cluster
         if: always() # Always run cleanup, even if tests fail
