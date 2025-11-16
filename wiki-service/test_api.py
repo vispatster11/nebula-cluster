@@ -8,7 +8,6 @@ import pytest_asyncio
 import os
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
 
 # Override database URL for tests
 os.environ["DB_USER"] = os.getenv("DB_USER", "postgres")
