@@ -90,10 +90,14 @@ spec:
   policyTypes:
     - Ingress
   ingress:
+    # Allow from the FastAPI app
     - from:
         - podSelector:
-            matchLabels:
-              {{- include "wiki-chart.selectorLabels" . | nindent 14 }}
+            matchLabels: {{ .Values.fastapi.selectorLabels | toYaml | nindent 14 }}
+    # Allow from the test job
+    - from:
+        - podSelector:
+            matchLabels: {{ .Values.test.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: {{ .Values.postgresql.port }}
