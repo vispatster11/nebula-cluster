@@ -121,7 +121,7 @@ jobs:
           kubectl create namespace ci-test
           helm install ci-release ./wiki-chart --namespace ci-test \
             --set fastapi.image.tag=${{ needs.image-scan.outputs.image_tag }} \
-            --set fastapi.image.pullPolicy=Never
+            --set fastapi.image.pullPolicy=Never \
             # Set the Grafana password as required by the assignment
             --set grafana.adminPassword=admin
 
