@@ -2,6 +2,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-test
+  annotations:
+    "helm.sh/hook": test
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "wiki-chart.labels" . | nindent 4 }}
