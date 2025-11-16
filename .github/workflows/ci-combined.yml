@@ -1,0 +1,109 @@
+name: Consolidated CI Pipeline
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "wiki-service/**"
+      - "wiki-chart/**"
+      - ".github/workflows/ci-combined.yml"
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  python-quality:
+    name: Python Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r wiki-service/requirements.txt bandit black ruff
+
+      - name: Run Linters and Scanners
+        run: |
+          black --check wiki-service/
+          ruff check wiki-service/
+          bandit -r wiki-service/
+
+  image-scan:
+    name: Docker Image Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t wiki-service:ci-scan wiki-service/
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'wiki-service:ci-scan'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  helm-lint:
+    name: Helm Chart Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Run Helm lint
+        run: helm lint ./wiki-chart --strict
+
+  integration-test:
+    name: Integration Tests (k3d)
+    runs-on: ubuntu-latest
+    needs: [python-quality, image-scan, helm-lint]
+    if: always() && needs.python-quality.result == 'success' && needs.image-scan.result == 'success' && needs.helm-lint.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create k3d cluster
+        uses: k3d-io/k3d-action@v2.1.0
+        with:
+          cluster-name: 'ci-cluster'
+          args: '--image rancher/k3s:v1.29.4-k3s1'
+
+      - name: Build and import image
+        run: |
+          docker build -t wiki-service:ci-test wiki-service/
+          k3d image import wiki-service:ci-test -c ci-cluster
+
+      - name: Install Helm chart and test
+        run: |
+          helm install ci-release ./wiki-chart \
+            --set fastapi.image.tag=ci-test \
+            --set fastapi.image.pullPolicy=Never \
+            --wait --timeout 5m
+          
+          kubectl wait --for=condition=Ready pod --all --timeout=2m
+          kubectl port-forward svc/ci-release-wiki-chart-fastapi 8080:8000 &
+          for i in {1..10}; do
+            if curl -sf http://localhost:8080/users -X POST -H "Content-Type: application/json" -d '{"name": "testuser"}'; then
+              echo "API test successful."
+              exit 0
+            fi
+            echo "API test failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "API endpoint did not become healthy in time."
+          exit 1

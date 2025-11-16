@@ -11,12 +11,9 @@ FastAPI + PostgreSQL + Prometheus + Grafana deployed to Kubernetes with Helm.
 
 ## CI Pipeline
 
-This project provides two CI pipeline approaches:
+This project uses a single, consolidated CI pipeline defined in `.github/workflows/ci-combined.yml`.
 
-1.  **Sequential Pipeline (`ci-1.yml`)**: Runs all jobs in order. Ideal for ensuring full-stack quality before a release or after a merge.
-2.  **Independent Workflows (`ci-2.yml` to `ci-5.yml`)**: Separate workflows for Python quality, image scanning, Helm linting, and integration tests. These provide fast, targeted feedback on specific code changes.
-
-See `PIPELINE.md` for a detailed explanation of both approaches.
+See `PIPELINE.md` for a detailed explanation of the pipeline structure and jobs.
 
 ## Getting Started
 
