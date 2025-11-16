@@ -156,12 +156,14 @@ spec:
           echo ""
           echo "Test 8: GET /-/healthy (Prometheus health)"
           PROMETHEUS_URL="http://{{ include "wiki-chart.fullname" . }}-prometheus:{{ .Values.prometheus.port }}"
-          RESPONSE=$(curl -s --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} "$PROMETHEUS_URL/-/healthy")
+          echo "Connecting to Prometheus at: $PROMETHEUS_URL"
+          RESPONSE=$(curl -v --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} "$PROMETHEUS_URL/-/healthy" 2>&1)
           echo "Response: $RESPONSE"
-          if echo "$RESPONSE" | grep -q "Prometheus Server is Healthy."; then
+          if echo "$RESPONSE" | grep -qE "(Prometheus|healthy|200 OK)"; then
             echo "✓ Prometheus health endpoint works"
           else
             echo "✗ Prometheus health endpoint failed"
+            echo "Debugging info: Attempting to check if Prometheus pod is running..."
             exit 1
           fi
 

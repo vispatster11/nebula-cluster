@@ -40,6 +40,7 @@ spec:
     targetPort: 9090
     protocol: TCP
   selector:
+    {{- .Values.prometheus.selectorLabels | toYaml | nindent 4 }}
     {{- include "wiki-chart.selectorLabels" . | nindent 4 }}
 ---
 apiVersion: apps/v1
@@ -53,6 +54,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      {{- .Values.prometheus.selectorLabels | toYaml | nindent 6 }}
       {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
   template:
     metadata:
