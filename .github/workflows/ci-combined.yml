@@ -44,39 +44,6 @@ jobs:
           bandit -r wiki-service/ -s B101
           pip-audit
 
-  image-scan:
-    name: Docker Image Scan
-    runs-on: ubuntu-latest
-    outputs:
-      image_name: wiki-service
-      image_tag: ci-scan-${{ github.run_id }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: |
-          IMAGE_TAG="ci-scan-${{ github.run_id }}"
-          docker build -t "wiki-service:${IMAGE_TAG}" wiki-service/
-          docker save "wiki-service:${IMAGE_TAG}" -o wiki-service.tar
-          echo "Image saved to wiki-service.tar"
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'wiki-service:ci-scan-${{ github.run_id }}'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: wiki-service-image
-          path: wiki-service.tar
-
   helm-lint:
     name: Helm Chart Validation
     runs-on: ubuntu-latest
@@ -93,8 +60,8 @@ jobs:
   integration-test:
     name: Integration Tests (k3d)
     runs-on: ubuntu-latest
-    needs: [python-quality, image-scan, helm-lint]
-    if: always() && needs.python-quality.result == 'success' && needs.image-scan.result == 'success' && needs.helm-lint.result == 'success'
+    needs: [python-quality, helm-lint]
+    if: always() && needs.python-quality.result == 'success' && needs.helm-lint.result == 'success'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -115,6 +82,23 @@ jobs:
       #     kubectl get nodes
       #     # Check for the local-path-provisioner components
       #     kubectl get pods -n kube-system -l app=local-path-provisioner
+
+      - name: Build and Scan Docker image
+        id: build_image
+        run: |
+          IMAGE_TAG="ci-test-${{ github.run_id }}"
+          docker build -t "wiki-service:${IMAGE_TAG}" wiki-service/
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'wiki-service:${{ steps.build_image.outputs.image_tag }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
 
 
       - name: Install and create k3d cluster
@@ -159,21 +143,13 @@ jobs:
           kubectl wait --for=condition=Ready "pod/$POD" -n kube-system --timeout=180s
 
 
-      - name: Download and import image
-        uses: actions/download-artifact@v4
-        with:
-          name: wiki-service-image
-
-      - name: Load image into k3d
-        run: |
-          k3d image load wiki-service.tar -c ci-cluster
-
       - name: Install Helm chart
         run: |
           # Use a dedicated namespace for production-like isolation
           kubectl create namespace ci-test
+          k3d image import "wiki-service:${{ steps.build_image.outputs.image_tag }}" -c ci-cluster
           helm install ci-release ./wiki-chart --namespace ci-test \
-            --set fastapi.image.tag=${{ needs.image-scan.outputs.image_tag }} \
+            --set fastapi.image.tag=${{ steps.build_image.outputs.image_tag }} \
             --set fastapi.image.pullPolicy=Never \
             --set grafana.adminPassword=admin # Set the Grafana password as required by the assignment
 
