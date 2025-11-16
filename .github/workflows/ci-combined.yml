@@ -121,14 +121,46 @@ jobs:
             --set fastapi.image.tag=${{ needs.image-scan.outputs.image_tag }} \
             --set fastapi.image.pullPolicy=Never
 
-      - name: Wait for services to be ready
+      - name: Show Cluster State
         run: |
-          echo "Waiting for FastAPI deployment to be ready..."
-          # Target the specific deployment for a more reliable wait
-          kubectl wait --namespace ci-test \
-            --for=condition=available deployment/ci-release-wiki-chart-fastapi \
-            --timeout=3m
+          echo "--- Initial cluster state after Helm install ---"
+          kubectl get all --namespace ci-test
+          echo "------------------------------------------------"
 
+      - name: Wait for services to be ready
+        id: wait-for-pods
+        run: |
+          echo "Waiting for all pods to be in a Ready state..."
+          END_TIME=$((SECONDS + 300)) # 5 minute timeout
+          while [ $SECONDS -lt $END_TIME ]; do
+            echo "--- Pod Statuses ---"
+            kubectl get pods -n ci-test
+            READY_PODS=$(kubectl get pods -n ci-test -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}' | tr ' ' '\n' | grep -c True)
+            TOTAL_PODS=$(kubectl get pods -n ci-test --no-headers | wc -l)
+            if [ "$READY_PODS" -eq "$TOTAL_PODS" ] && [ "$TOTAL_PODS" -gt "0" ]; then
+              echo "All pods are ready!"
+              kubectl get pods -n ci-test
+              exit 0
+            fi
+            echo "--------------------"
+            sleep 10
+          done
+          echo "Timeout waiting for pods to become ready."
+          exit 1
+
+      - name: Debug Pods on Failure
+        if: failure() && steps.wait-for-pods.outcome == 'failure'
+        run: |
+          echo "::error::Pod readiness check failed. Dumping debug information."
+          echo "--- Describing all pods in ci-test namespace ---"
+          kubectl describe pods -n ci-test
+          echo "--- Logs for all pods in ci-test namespace ---"
+          for pod in $(kubectl get pods -n ci-test -o jsonpath='{.items[*].metadata.name}'); do
+            echo "--- Logs for $pod ---"
+            kubectl logs --all-containers=true --tail=100 -n ci-test "$pod" || echo "Could not retrieve logs for $pod."
+            echo "----------------------"
+          done
+          
       - name: Run End-to-End Tests
         run: |
             # --- Start E2E Test Script ---
