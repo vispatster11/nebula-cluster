@@ -137,6 +137,28 @@ spec:
         - protocol: TCP
           port: 3000
 ---
+# Source: wiki-chart/templates/network-policy.yaml
+# Allow traffic to Prometheus from test job
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: local-release-wiki-chart-allow-to-prometheus
+  namespace: local-test
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: test
+      ports:
+        - protocol: TCP
+          port: 9090
+---
 # Source: wiki-chart/templates/test-policy.yaml
 # test-policy.yaml
 # This policy grants the helm test pod the necessary egress permissions
@@ -266,7 +288,7 @@ metadata:
   namespace: local-test
 type: Opaque
 stringData:
-  password: U1tRsWhtOiSrNX1Dl8Y5DNGy4G8K8AJR
+  password: 4RSLMuuqChElYUrBY1zCAj7z00dKut0x
 ---
 # Source: wiki-chart/templates/grafana-dashboard-provider.yaml
 apiVersion: v1
@@ -571,8 +593,8 @@ spec:
     protocol: TCP
   selector:
     app: prometheus
-    app.kubernetes.io/name: wiki-chart
     app.kubernetes.io/instance: local-release
+    app.kubernetes.io/name: wiki-chart
 ---
 # Source: wiki-chart/templates/fastapi.yaml
 apiVersion: apps/v1

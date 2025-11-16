@@ -1,6 +1,7 @@
 === Wiki Chart Integration Tests ===
 
 Waiting for FastAPI service to be ready...
+Attempt 1/30: Waiting...
 ✓ FastAPI service is ready
 
 Test 1: GET / (root endpoint)
@@ -8,19 +9,19 @@ Response: {"message":"User and Post API","endpoints":{"POST /users":"Create a ne
 ✓ Root endpoint works
 
 Test 2: POST /users (create user)
-Response: {"id":1,"name":"TestUser","created_time":"2025-11-16T11:55:50.163126Z"}
+Response: {"id":1,"name":"TestUser","created_time":"2025-11-16T16:36:55.128460Z"}
 ✓ Create user works
 
 Test 3: GET /user/1 (get user by ID)
-Response: {"id":1,"name":"TestUser","created_time":"2025-11-16T11:55:50.163126Z"}
+Response: {"id":1,"name":"TestUser","created_time":"2025-11-16T16:36:55.128460Z"}
 ✓ Get user works
 
 Test 4: POST /posts (create post)
-Response: {"post_id":1,"content":"Test post","user_id":1,"created_time":"2025-11-16T11:55:50.228978Z"}
+Response: {"post_id":1,"content":"Test post","user_id":1,"created_time":"2025-11-16T16:36:55.160388Z"}
 ✓ Create post works
 
 Test 5: GET /posts/1 (get post by ID)
-Response: {"post_id":1,"content":"Test post","user_id":1,"created_time":"2025-11-16T11:55:50.228978Z"}
+Response: {"post_id":1,"content":"Test post","user_id":1,"created_time":"2025-11-16T16:36:55.160388Z"}
 ✓ Get post works
 
 Test 6: GET /metrics (Prometheus metrics)
@@ -44,19 +45,19 @@ python_gc_collections_total{generation="2"} 0.0
 python_info{implementation="CPython",major="3",minor="13",patchlevel="9",version="3.13.9"} 1.0
 # HELP process_virtual_memory_bytes Virtual memory size in bytes.
 # TYPE process_virtual_memory_bytes gauge
-process_virtual_memory_bytes 3.35736832e+08
+process_virtual_memory_bytes 3.3579008e+08
 # HELP process_resident_memory_bytes Resident memory size in bytes.
 # TYPE process_resident_memory_bytes gauge
-process_resident_memory_bytes 7.9310848e+07
+process_resident_memory_bytes 8.1268736e+07
 # HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
 # TYPE process_start_time_seconds gauge
-process_start_time_seconds 1.76329413408e+09
+process_start_time_seconds 1.76331099408e+09
 # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
 # TYPE process_cpu_seconds_total counter
-process_cpu_seconds_total 1.06
+process_cpu_seconds_total 0.9400000000000001
 # HELP process_open_fds Number of open file descriptors.
 # TYPE process_open_fds gauge
-process_open_fds 16.0
+process_open_fds 18.0
 # HELP process_max_fds Maximum number of open file descriptors.
 # TYPE process_max_fds gauge
 process_max_fds 1.048576e+06
@@ -65,13 +66,13 @@ process_max_fds 1.048576e+06
 users_created_total 1.0
 # HELP users_created_created Total number of users created
 # TYPE users_created_created gauge
-users_created_created 1.763294136122726e+09
+users_created_created 1.763310995929526e+09
 # HELP posts_created_total Total number of posts created
 # TYPE posts_created_total counter
 posts_created_total 1.0
 # HELP posts_created_created Total number of posts created
 # TYPE posts_created_created gauge
-posts_created_created 1.7632941361227498e+09
+posts_created_created 1.7633109959295535e+09
 ✓ Metrics endpoint works
 
 Test 7: GET /api/health (Grafana health)
@@ -83,4 +84,25 @@ Response: '{
 ✓ Grafana health endpoint works
 
 Test 8: GET /-/healthy (Prometheus health)
-Response: Prometheus Server is Healthy.
+Connecting to Prometheus at: http://local-release-wiki-chart-prometheus:9090
+Response:   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying 10.43.232.189:9090...
+* Connected to local-release-wiki-chart-prometheus (10.43.232.189) port 9090 (#0)
+> GET /-/healthy HTTP/1.1
+> Host: local-release-wiki-chart-prometheus:9090
+> User-Agent: curl/8.1.0-DEV
+> Accept: */*
+> 
+< HTTP/1.1 200 OK
+< Date: Sun, 16 Nov 2025 16:36:55 GMT
+< Content-Length: 30
+< Content-Type: text/plain; charset=utf-8
+< 
+{ [30 bytes data]
+Prometheus Server is Healthy.
+100    30  100    30    0     0    373      0 --:--:-- --:--:-- --:--:-- 30000
+* Connection #0 to host local-release-wiki-chart-prometheus left intact
+✓ Prometheus health endpoint works
+
+=== All tests passed ===
