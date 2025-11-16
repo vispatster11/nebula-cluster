@@ -100,18 +100,16 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-
-      - name: Install and create k3d cluster
+      - name: Install and create k3d cluster (CI-safe storage)
         run: |
-          # Create a directory on the runner to act as the persistent storage
           mkdir -p /tmp/k3d-storage
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
+          k3d cluster create ci-cluster \
+            --image rancher/k3s:v1.29.11-k3s1 \
+            --volume /tmp/k3d-storage:/tmp/k3d-storage@server:0
 
-          
-      - name: Configure local-path-provisioner (stable CI-safe version)
+      - name: Configure local-path-provisioner for CI
         run: |
-          # Apply local-path-provisioner config
           cat <<EOF | kubectl apply -f -
           apiVersion: v1
           kind: ConfigMap
@@ -120,28 +118,24 @@ jobs:
             namespace: kube-system
           data:
             config.json: |
-              { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
+              {
+                "nodePathMap": [
+                  {
+                    "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                    "paths": ["/tmp/k3d-storage"]
+                  }
+                ]
+              }
           EOF
 
-          echo "Waiting for local-path-provisioner pod to be created..."
+          # Wait for pod to appear
           for i in {1..60}; do
             POD=$(kubectl get pod -n kube-system | grep local-path-provisioner | awk '{print $1}')
-            if [ -n "$POD" ]; then
-              echo "Found pod: $POD"
-              break
-            fi
+            [[ -n "$POD" ]] && break
             sleep 2
           done
 
-          if [ -z "$POD" ]; then
-            echo "ERROR: local-path-provisioner pod never appeared."
-            kubectl get pods -n kube-system
-            exit 1
-          fi
-
-          echo "Waiting for local-path-provisioner pod to be Ready..."
-          kubectl wait --for=condition=Ready "pod/$POD" -n kube-system --timeout=180s
-
+          kubectl wait --for=condition=Ready pod/$POD -n kube-system --timeout=180s
 
       - name: Install Helm chart
         run: |
@@ -165,7 +159,8 @@ jobs:
           echo "Waiting for all deployments to be ready..."
           # Wait for the main application deployments to become available.
           # This is more reliable than checking all pods, as it ignores the test job.
-          kubectl wait --for=condition=Available -n ci-test deployment --all --timeout=5m
+          kubectl -n ci-test deployment get ev
+          kubectl wait --for=condition=Available -n ci-test deployment --all --timeout=2m
 
       - name: Debug Pods on Failure
         if: failure() && steps.wait-for-pods.outcome == 'failure'
