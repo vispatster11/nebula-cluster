@@ -20,9 +20,12 @@ Accessing Services:
    echo "FastAPI URL: http://$SERVICE_IP/"
 
 2. Access Grafana:
-   You can access the Grafana dashboard by port-forwarding:
-   kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "wiki-chart.fullname" . }}-grafana 3000:80
-   Open http://localhost:3000 in your browser.
+   - Via Ingress (if Ingress is enabled and you have an Ingress Controller):
+     The Grafana dashboard will be available at `http://<YOUR_INGRESS_IP>/grafana/`.
+
+   - Via Port-Forwarding (for local access):
+     kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "wiki-chart.fullname" . }}-grafana 3000:80
+     Then open http://localhost:3000 in your browser.
 
 ---
 Credentials:

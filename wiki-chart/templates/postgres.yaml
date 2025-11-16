@@ -1,19 +1,4 @@
 apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "wiki-chart.fullname" . }}-postgres-pvc
-  namespace: {{ .Release.Namespace }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.postgresql.primary.persistence.size }}
-  {{- if .Values.postgresql.primary.persistence.storageClass }}
-  storageClassName: {{ .Values.postgresql.primary.persistence.storageClass }}
-  {{- end }}
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-postgres-config
@@ -22,7 +7,7 @@ data:
   POSTGRES_USER: {{ .Values.postgresql.auth.username }}
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-postgres
   labels:
@@ -30,6 +15,7 @@ metadata:
     release: {{ .Release.Name }}
 spec:
   replicas: 1
+  serviceName: {{ include "wiki-chart.fullname" . }}-postgres
   selector:
     matchLabels:
       app: postgres
@@ -85,10 +71,18 @@ spec:
             - pg_isready -U {{ .Values.postgresql.auth.username }}
           initialDelaySeconds: 5
           periodSeconds: 10
-      volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: {{ include "wiki-chart.fullname" . }}-postgres-pvc
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.primary.persistence.size }}
+        {{- if .Values.postgresql.primary.persistence.storageClass }}
+        storageClassName: {{ .Values.postgresql.primary.persistence.storageClass }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -98,6 +92,7 @@ metadata:
     app: postgres
 spec:
   type: ClusterIP
+  clusterIP: None # This makes the service "headless", which is required for a StatefulSet
   ports:
   - port: 5432
     targetPort: 5432

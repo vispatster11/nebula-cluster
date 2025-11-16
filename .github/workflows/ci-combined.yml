@@ -116,7 +116,11 @@ jobs:
           data:
             config.json: |
               {
-                "nodePathMap": [
+                "setup": {
+                  "command": ["chown", "-R", "999:999", "/"],
+                  "image": "busybox:1.36"
+                },
+                 "nodePathMap": [
                   {
                     "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
                     "paths": ["/tmp/k3d-storage"]
