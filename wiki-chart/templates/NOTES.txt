@@ -4,6 +4,13 @@ Your release is named {{ .Release.Name }}.
 The full stack (FastAPI, PostgreSQL, Prometheus, Grafana) is being deployed.
 
 ---
+Security & Quality:
+
+This application is built and tested using a CI/CD pipeline that enforces
+security and quality standards. This includes static code analysis, dependency
+vulnerability scanning (pip-audit), and container image scanning (Trivy).
+
+---
 Accessing Services:
 
 1. Get the application URL by running these commands:
