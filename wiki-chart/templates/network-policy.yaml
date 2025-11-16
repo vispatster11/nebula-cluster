@@ -28,8 +28,7 @@ spec:
     # Allow from Prometheus for scraping metrics
     - from:
         - podSelector:
-            matchLabels:
-              app: prometheus
+            matchLabels: {{ .Values.prometheus.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
@@ -37,17 +36,22 @@ spec:
     # These labels should be configured in values.yaml to match your cluster's Ingress Controller.
     - from:
         - namespaceSelector:
-            matchLabels: {{ .Values.networkPolicy.ingressController.namespaceLabels | toYaml | nindent 14 }}
+            matchLabels:
+              {{- range $key, $value := .Values.networkPolicy.ingressController.namespaceLabels }}
+              {{ $key }}: {{ $value | quote }}
+              {{- end }}
           podSelector:
-            matchLabels: {{ .Values.networkPolicy.ingressController.podLabels | toYaml | nindent 14 }}
+            matchLabels:
+              {{- range $key, $value := .Values.networkPolicy.ingressController.podLabels }}
+              {{ $key }}: {{ $value | quote }}
+              {{- end }}
       ports:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
     # Allow from the test job
     - from:
         - podSelector:
-            matchLabels:
-              app.kubernetes.io/component: test
+            matchLabels: {{ .Values.test.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
@@ -55,13 +59,12 @@ spec:
     - from:
       - podSelector:
           matchLabels:
-            app: postgres
+            {{- .Values.postgresql.selectorLabels | toYaml | nindent 12 }}
   egress:
     # Allow to Postgres
     - to:
         - podSelector:
-            matchLabels:
-              app: postgres
+            matchLabels: {{ .Values.postgresql.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: 5432
@@ -83,8 +86,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   podSelector:
-    matchLabels:
-      app: postgres
+    matchLabels: {{ .Values.postgresql.selectorLabels | toYaml | nindent 6 }}
   policyTypes:
     - Ingress
   ingress:
@@ -104,8 +106,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   podSelector:
-    matchLabels:
-      app: grafana
+    matchLabels: {{ .Values.grafana.selectorLabels | toYaml | nindent 6 }}
   policyTypes:
     - Ingress
   ingress:
@@ -113,14 +114,19 @@ spec:
     # These labels should be configured in values.yaml to match your cluster's Ingress Controller.
     - from:
         - namespaceSelector:
-            matchLabels: {{ .Values.networkPolicy.ingressController.namespaceLabels | toYaml | nindent 12 }}
+            matchLabels:
+              {{- range $key, $value := .Values.networkPolicy.ingressController.namespaceLabels }}
+              {{ $key }}: {{ $value | quote }}
+              {{- end }}
           podSelector:
-            matchLabels: {{ .Values.networkPolicy.ingressController.podLabels | toYaml | nindent 12 }}
+            matchLabels:
+              {{- range $key, $value := .Values.networkPolicy.ingressController.podLabels }}
+              {{ $key }}: {{ $value | quote }}
+              {{- end }}
     # Allow from the test job
     - from:
         - podSelector:
-            matchLabels:
-              app.kubernetes.io/component: test
+            matchLabels: {{ .Values.test.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: 3000

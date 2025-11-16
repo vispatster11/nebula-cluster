@@ -54,6 +54,8 @@ postgresql:
     runAsGroup: 70
     fsGroup: 70
     allowPrivilegeEscalation: false
+  selectorLabels:
+    app: postgres
 
 # Prometheus Configuration
 prometheus:
@@ -77,6 +79,8 @@ prometheus:
   securityContext:
     runAsNonRoot: true
     allowPrivilegeEscalation: false
+  selectorLabels:
+    app: prometheus
 
 # Grafana Configuration
 grafana:
@@ -104,6 +108,8 @@ grafana:
     size: 1Gi
     # Storage class used for Grafana PVC in k3d
     storageClass: "local-path"
+  selectorLabels:
+    app: grafana
 
 # Ingress Configuration
 # Uses Traefik (k3d default) instead of NGINX
@@ -141,3 +147,8 @@ networkPolicy:
     # Labels of the ingress controller pods
     podLabels:
       app.kubernetes.io/name: traefik
+
+# Test Job Configuration
+test:
+  selectorLabels:
+    app.kubernetes.io/component: test
