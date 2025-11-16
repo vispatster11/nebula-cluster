@@ -23,17 +23,10 @@ This guide covers deploying the Wiki API stack (FastAPI, PostgreSQL, Prometheus,
 ```bash
 docker build -t wiki-service:0.1.0 wiki-service/
 k3d image import wiki-service:0.1.0 -c your-cluster
-```
 
-For registry:
-```powershell
-docker tag wiki-service:0.1.0 your-registry/wiki-service:0.1.0
-docker push your-registry/wiki-service:0.1.0
-```
+**2. Create Namespace:**
 
-**2. Create namespace:**
-
-```powershell
+```bash
 kubectl create namespace wiki-prod
 ```
 
@@ -111,23 +104,19 @@ helm install wiki-service ./wiki-chart --namespace wiki-prod \
 
 ## CI Pipeline: Two Approaches
 
-**Approach 1: Sequential Pipeline**
+**Approach 1: Independent Workflows**
+
+Each stage runs as a separate, independent workflow, triggered only by changes to relevant files. This provides fast, targeted feedback.
+- `ci-2.yml` — Lints and scans Python code.
+- `ci-3.yml` — Builds and scans the Docker image.
+- `ci-4.yml` — Validates the Helm chart.
+- `ci-5.yml` — Runs a full deployment test in a k3d cluster.
+
+**Approach 2: Sequential Pipeline**
 
 A single workflow (`ci-1.yml`) runs all jobs in a specific order. If any job fails, subsequent jobs are skipped. This is ideal for pull request checks to ensure all quality gates are passed before merging.
 - **File**: `.github/workflows/ci-1.yml`
-- **Sequence**:
-  1.  Python Quality (`ci-2.yml` logic)
-  2.  Docker Scan (`ci-3.yml` logic)
-  3.  Helm Lint (`ci-4.yml` logic)
-  4.  Integration Test (`ci-5.yml` logic)
-
-**Approach 2: Independent Workflows**
-
-Each stage runs as a separate, independent workflow, triggered by changes to relevant files. This is useful for getting quick, targeted feedback.
-- `ci-2.yml` — Lints and scans Python code.
-- `ci-3.yml` — Builds and scans the Docker image for vulnerabilities.
-- `ci-4.yml` — Validates the Helm chart.
-- `ci-5.yml` — Runs a full deployment test in a temporary k3d cluster.
+- **Trigger**: Manual dispatch (`workflow_dispatch`) or on push/PR to `main`.
 
 ## Test Locally
 
