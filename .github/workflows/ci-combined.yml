@@ -101,8 +101,10 @@ jobs:
 
       - name: Install and create k3d cluster
         run: |
+          # Create a directory on the runner to act as the persistent storage
+          mkdir -p /tmp/k3d-storage
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1
+          k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
 
       - name: Download and import image
         uses: actions/download-artifact@v4
@@ -120,6 +122,8 @@ jobs:
           helm install ci-release ./wiki-chart --namespace ci-test \
             --set fastapi.image.tag=${{ needs.image-scan.outputs.image_tag }} \
             --set fastapi.image.pullPolicy=Never
+            # Set the Grafana password as required by the assignment
+            --set grafana.adminPassword=admin
 
       - name: Show Cluster State
         run: |
@@ -153,6 +157,11 @@ jobs:
         run: |
           echo "::error::Pod readiness check failed. Dumping debug information."
           echo "--- Describing all pods in ci-test namespace ---"
+          kubectl describe pods -n ci-test
+          echo "--- Describing all PVCs in ci-test namespace ---"
+          kubectl describe pvc -n ci-test
+          echo "--- Events in ci-test namespace ---"
+          kubectl get events -n ci-test --sort-by='.lastTimestamp'
           kubectl describe pods -n ci-test
           echo "--- Logs for all pods in ci-test namespace ---"
           for pod in $(kubectl get pods -n ci-test -o jsonpath='{.items[*].metadata.name}'); do
@@ -209,7 +218,7 @@ jobs:
 
             # 7. Test Grafana Dashboard Endpoint (with dynamic password retrieval)
             echo "Retrieving Grafana admin password from secret..."
-            GRAFANA_PASSWORD=$(kubectl get secret --namespace ci-test ci-release-wiki-chart-grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+            GRAFANA_PASSWORD=$(kubectl get secret --namespace ci-test ci-release-wiki-chart-grafana-secret -o jsonpath="{.data.admin-password}" | base64 --decode)
             
             echo "Testing Grafana dashboard access..."
             # Check for a 200 OK, which confirms the service is working.
