@@ -89,8 +89,15 @@ jobs:
       - name: Install and create k3d cluster (CI-safe storage)
         run: |
           mkdir -p $HOME/bin
+          HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+          curl -sSL https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz -o /tmp/helm.tar.gz
+          tar -xzvf /tmp/helm.tar.gz -C /tmp
+          mv /tmp/linux-amd64/helm $HOME/bin/
+          chmod +x $HOME/bin/helm
+
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash -s -- --no-sudo
           echo "$HOME/bin" >> $GITHUB_PATH
+
           mkdir -p /tmp/k3d-storage
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
           k3d cluster create ci-cluster \
