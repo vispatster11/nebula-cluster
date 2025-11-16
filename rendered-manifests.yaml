@@ -266,7 +266,7 @@ metadata:
   namespace: local-test
 type: Opaque
 stringData:
-  password: zYEiTDJ3Ua7yYxDVpwlSkr2sjsvcC3uM
+  password: wpknfRFxFE1eGB6il25SNbLEuZK8o8ub
 ---
 # Source: wiki-chart/templates/grafana-dashboard-provider.yaml
 apiVersion: v1
@@ -1006,14 +1006,24 @@ spec:
     spec:
       serviceAccountName: local-release-wiki-chart-test
       restartPolicy: Never
+      volumes:
+        - name: output-log
+          emptyDir: {}
       containers:
       - name: test
         image: curlimages/curl:8.1.0
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: output-log
+            mountPath: /output
         command:
         - /bin/sh
         - -c
         - |
+          # Redirect all stdout/stderr to a log file in the writable /output volume
+          # while also teeing to the container's stdout for live viewing.
+          exec &> >(tee /output/test-run.log)
+
           set -e
           
           echo "=== Wiki Chart Integration Tests ==="

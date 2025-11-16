@@ -18,14 +18,24 @@ spec:
     spec:
       serviceAccountName: {{ include "wiki-chart.fullname" . }}-test
       restartPolicy: Never
+      volumes:
+        - name: output-log
+          emptyDir: {}
       containers:
       - name: test
         image: curlimages/curl:8.1.0
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: output-log
+            mountPath: /output
         command:
         - /bin/sh
         - -c
         - |
+          # Redirect all stdout/stderr to a log file in the writable /output volume
+          # while also teeing to the container's stdout for live viewing.
+          exec &> >(tee /output/test-run.log)
+
           set -e
           
           echo "=== Wiki Chart Integration Tests ==="
