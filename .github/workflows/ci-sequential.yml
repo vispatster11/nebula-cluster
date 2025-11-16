@@ -266,11 +266,29 @@ jobs:
       - name: Check deployment status
         run: |
           echo "Pod Status"
-          kubectl get pods -n wiki-test
+          kubectl get pods -n wiki-test -o wide || true
           echo "Service Status"
-          kubectl get svc -n wiki-test
-          echo "Deployment Logs"
-          kubectl logs -n wiki-test -l app.kubernetes.io/instance=test-wiki --tail=50
+          kubectl get svc -n wiki-test || true
+
+          echo "Investigating non-ready pods and collecting logs..."
+          for p in $(kubectl get pods -n wiki-test -o custom-columns=NAME:.metadata.name --no-headers); do
+            # Check ready status for each pod
+            READY=$(kubectl get pod $p -n wiki-test -o jsonpath='{.status.containerStatuses[*].ready}' || echo '')
+            if [ -z "$READY" ] || echo "$READY" | grep -qv "true"; then
+              echo "---- Pod: $p ----"
+              kubectl describe pod $p -n wiki-test || true
+              echo "Logs (all containers):"
+              kubectl logs $p -n wiki-test --all-containers=true --tail=200 || true
+              # Init container logs (if any)
+              INIT_CONTAINERS=$(kubectl get pod $p -n wiki-test -o jsonpath='{.spec.initContainers[*].name}' || echo '')
+              for ic in $INIT_CONTAINERS; do
+                if [ -n "$ic" ]; then
+                  echo "Init container $ic logs for pod $p:"
+                  kubectl logs $p -n wiki-test -c $ic || true
+                fi
+              done
+            fi
+          done
 
       - name: Wait for pods and run tests
         continue-on-error: true
@@ -286,14 +304,23 @@ jobs:
         continue-on-error: true
         run: |
           echo "Testing FastAPI endpoints via port-forward..."
-          kubectl port-forward -n wiki-test svc/test-wiki-fastapi 8080:8000 &
-          FORWARD_PID=$!
-          sleep 5
-          
-          curl -s -i http://localhost:8080/ --max-time 5 || true
-          curl -s -X POST http://localhost:8080/users -H "Content-Type: application/json" -d '{"name":"K8s Test User"}' --max-time 5 || true
-          
-          kill -9 $FORWARD_PID 2>/dev/null || true
+          # Find a service in the namespace that exposes port 8000
+          FASTAPI_SVC=$(kubectl get svc -n wiki-test --no-headers | grep 8000 || true | awk '{print $1}' | head -n1)
+          if [ -z "$FASTAPI_SVC" ]; then
+            echo "No service exposing port 8000 found; attempting to find any service to forward"
+            FASTAPI_SVC=$(kubectl get svc -n wiki-test --no-headers | awk '{print $1}' | head -n1)
+          fi
+          echo "Using service: $FASTAPI_SVC"
+          if [ -n "$FASTAPI_SVC" ]; then
+            kubectl port-forward -n wiki-test svc/$FASTAPI_SVC 8080:8000 &
+            FORWARD_PID=$!
+            sleep 5
+            curl -s -i http://localhost:8080/ --max-time 5 || true
+            curl -s -X POST http://localhost:8080/users -H "Content-Type: application/json" -d '{"name":"K8s Test User"}' --max-time 5 || true
+            kill -9 $FORWARD_PID 2>/dev/null || true
+          else
+            echo "Skipping port-forward tests because no service found."
+          fi
 
       - name: Test Grafana dashboard
         continue-on-error: true

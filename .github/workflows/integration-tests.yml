@@ -1,16 +1,9 @@
 name: CI Pipeline - Build, Test, Scan & Deploy
 
+# NOTE: This integration workflow can be triggered manually for debugging.
+# The canonical CI workflow is `.github/workflows/ci-sequential.yml` which
+# orchestrates the integration stage as part of the full pipeline.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'wiki-service/**'
-      - 'wiki-chart/**'
-      - '.github/workflows/integration-tests.yml'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:

@@ -1,17 +1,8 @@
 name: Python Code Quality & Security
 
+# NOTE: This workflow has been retained for manual runs and debugging.
+# The canonical CI path is the orchestrating workflow: `.github/workflows/ci-sequential.yml`.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '**/*.py'
-      - '.github/workflows/python-quality.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - '**/*.py'
   workflow_dispatch:
 
 jobs:
