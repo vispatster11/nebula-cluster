@@ -122,13 +122,17 @@ data:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "wiki-chart.fullname" . }}-grafana-secret
+  name: {{ include "wiki-chart.fullname" . }}-grafana-pvc
+  namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.grafana.persistence.size }}
+  {{- if .Values.grafana.persistence.storageClass }}
+  storageClassName: {{ .Values.grafana.persistence.storageClass }}
+  {{- end }}
 ---
 apiVersion: v1
 kind: Service

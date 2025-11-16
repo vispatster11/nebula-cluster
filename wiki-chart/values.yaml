@@ -38,6 +38,8 @@ postgresql:
   primary:
     persistence:
       size: 2Gi
+      # Storage class name for k3d/local-path. Change if your cluster uses another class.
+      storageClass: "local-path"
   resources:
     requests:
       cpu: 250m
@@ -46,9 +48,11 @@ postgresql:
       cpu: 500m
       memory: 1Gi
   securityContext:
-    runAsNonRoot: true
-    runAsUser: 999
-    runAsGroup: 999
+    # For k3d local testing we allow running as root so the Postgres image can
+    # initialize the data directory; set to non-root in production via values overrides.
+    runAsNonRoot: false
+    runAsUser: 0
+    runAsGroup: 0
     fsGroup: 999
     allowPrivilegeEscalation: false
 
@@ -69,6 +73,8 @@ prometheus:
       memory: 1Gi
   retention: 15d
   storageSize: 2Gi
+  # Storage class used for Prometheus PVC in k3d
+  storageClass: "local-path"
   securityContext:
     runAsNonRoot: true
     allowPrivilegeEscalation: false
@@ -97,6 +103,8 @@ grafana:
       memory: 256Mi
   persistence:
     size: 1Gi
+    # Storage class used for Grafana PVC in k3d
+    storageClass: "local-path"
 
 # Ingress Configuration
 # Uses Traefik (k3d default) instead of NGINX

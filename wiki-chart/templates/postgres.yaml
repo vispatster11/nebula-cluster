@@ -2,12 +2,16 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-postgres-pvc
+  namespace: {{ .Release.Namespace }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.postgresql.primary.persistence.size }}
+  {{- if .Values.postgresql.primary.persistence.storageClass }}
+  storageClassName: {{ .Values.postgresql.primary.persistence.storageClass }}
+  {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -65,7 +69,6 @@ spec:
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
-          subPath: postgres
         livenessProbe:
           exec:
             command:

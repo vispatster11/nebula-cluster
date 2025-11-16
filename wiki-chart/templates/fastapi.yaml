@@ -32,10 +32,18 @@ spec:
       serviceAccountName: {{ include "wiki-chart.fullname" . }}-fastapi-sa
       initContainers:
       - name: wait-for-postgres
-        image: busybox:1.28
+        # use postgres client image to get pg_isready utility
+        image: {{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}
         securityContext:
           runAsNonRoot: false
-        command: ['sh', '-c', 'until nc -z {{ include "wiki-chart.fullname" . }}-postgres 5432; do echo waiting for postgres; sleep 2; done;']
+        command:
+        - sh
+        - -c
+        - |
+          until pg_isready -h {{ include "wiki-chart.fullname" . }}-postgres -p 5432 -U {{ .Values.postgresql.auth.username }}; do
+            echo "Waiting for Postgres to be ready..."
+            sleep 2
+          done
       containers:
       - name: fastapi
         image: "{{ .Values.fastapi.image.repository }}:{{ .Values.fastapi.image.tag }}"

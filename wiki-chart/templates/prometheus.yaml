@@ -24,6 +24,9 @@ spec:
   resources:
     requests:
       storage: {{ .Values.prometheus.storageSize }}
+  {{- if .Values.prometheus.storageClass }}
+  storageClassName: {{ .Values.prometheus.storageClass }}
+  {{- end }}
 ---
 apiVersion: v1
 kind: Service
