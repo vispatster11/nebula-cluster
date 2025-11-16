@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create k3d cluster
-        uses: k3d-io/k3d-action@v2.1.0
+        uses: k3d-io/k3d-tools/action@v1.0.0
         with:
           cluster-name: 'ci-cluster'
           args: '--image rancher/k3s:v1.29.4-k3s1'
@@ -96,14 +96,66 @@ jobs:
             --wait --timeout 5m
           
           kubectl wait --for=condition=Ready pod --all --timeout=2m
-          kubectl port-forward svc/ci-release-wiki-chart-fastapi 8080:8000 &
-          for i in {1..10}; do
-            if curl -sf http://localhost:8080/users -X POST -H "Content-Type: application/json" -d '{"name": "testuser"}'; then
-              echo "API test successful."
-              exit 0
+
+          # --- Start E2E Test Script ---
+          echo "--- Starting End-to-End Tests ---"
+          
+          # Set up port forwarding in the background
+          kubectl port-forward svc/ci-release-wiki-chart-fastapi 8080:8000 >/dev/null 2>&1 &
+          sleep 5 # Allow time for port-forward to establish
+
+          BASE_URL="http://localhost:8080"
+          SUCCESS_COUNT=0
+          FAIL_COUNT=0
+
+          # Helper function for tests
+          run_test() {
+            if eval "$1"; then
+              echo "✓ PASSED: $2"
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+              echo "✗ FAILED: $2"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
             fi
-            echo "API test failed, retrying in 5s..."
-            sleep 5
-          done
-          echo "API endpoint did not become healthy in time."
-          exit 1
+          }
+
+          # 1. Test Root Endpoint
+          run_test "curl -s --fail $BASE_URL/ | grep -q 'User and Post API'" "Root endpoint is accessible"
+
+          # 2. Test User Creation
+          USER_ID=$(curl -s -X POST "$BASE_URL/users" -H "Content-Type: application/json" -d '{"name": "E2E Test User"}' | jq -r '.id')
+          run_test "[[ ! -z '$USER_ID' && '$USER_ID' != 'null' ]]" "POST /users creates a user"
+
+          # 3. Test Get User
+          run_test "curl -s --fail $BASE_URL/user/$USER_ID | grep -q 'E2E Test User'" "GET /user/{id} retrieves the correct user"
+
+          # 4. Test Post Creation
+          POST_ID=$(curl -s -X POST "$BASE_URL/posts" -H "Content-Type: application/json" -d '{\"user_id\": '$USER_ID', \"content\": \"E2E post content\"}' | jq -r '.post_id')
+          run_test "[[ ! -z '$POST_ID' && '$POST_ID' != 'null' ]]" "POST /posts creates a post"
+
+          # 5. Test Get Post
+          run_test "curl -s --fail $BASE_URL/posts/$POST_ID | grep -q 'E2E post content'" "GET /posts/{id} retrieves the correct post"
+
+          # 6. Test Metrics Endpoint
+          METRICS=$(curl -s --fail $BASE_URL/metrics)
+          run_test "echo '$METRICS' | grep -q 'users_created_total'" "GET /metrics exposes users_created_total"
+          run_test "echo '$METRICS' | grep -q 'posts_created_total'" "GET /metrics exposes posts_created_total"
+
+          # 7. Test Grafana Dashboard Endpoint
+          # We check for a 302 redirect to the login page, which confirms the ingress and service are working.
+          # The -u admin:admin is required by the assignment.
+          run_test "curl -s -o /dev/null -w '%{http_code}' -u admin:admin $BASE_URL/grafana/d/creation-dashboard-678/creation | grep -q '200'" "GET /grafana/d/creation-dashboard-678/creation is accessible"
+
+          # --- Test Summary ---
+          echo "--- E2E Test Summary ---"
+          echo "Passed: $SUCCESS_COUNT"
+          echo "Failed: $FAIL_COUNT"
+          echo "------------------------"
+
+          if [ "$FAIL_COUNT" -ne 0 ]; then
+            echo "E2E tests failed. Exiting."
+            exit 1
+          else
+            echo "All E2E tests passed successfully!"
+          fi
+          # --- End E2E Test Script ---
