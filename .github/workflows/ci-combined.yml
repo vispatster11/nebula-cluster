@@ -106,6 +106,21 @@ jobs:
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
           k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
 
+      - name: Configure k3d local-path provisioner
+        run: |
+          # This ConfigMap tells the k3s local-path provisioner where to create PersistentVolumes.
+          # It must match the path mounted in the 'k3d cluster create' command.
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: local-path-config
+            namespace: kube-system
+          data:
+            config.json: |
+              { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
+          EOF
+
       - name: Download and import image
         uses: actions/download-artifact@v4
         with:
