@@ -23,6 +23,7 @@ This guide covers deploying the Wiki API stack (FastAPI, PostgreSQL, Prometheus,
 ```bash
 docker build -t wiki-service:0.1.0 wiki-service/
 k3d image import wiki-service:0.1.0 -c your-cluster
+```
 
 **2. Create Namespace:**
 
