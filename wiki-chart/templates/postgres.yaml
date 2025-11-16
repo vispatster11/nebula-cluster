@@ -39,7 +39,6 @@ spec:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
       securityContext:
-        runAsNonRoot: {{ .Values.postgresql.securityContext.runAsNonRoot | default true }}
         runAsUser: {{ .Values.postgresql.securityContext.runAsUser | default 999 }}
         runAsGroup: {{ .Values.postgresql.securityContext.runAsGroup | default 999 }}
         fsGroup: {{ .Values.postgresql.securityContext.fsGroup | default 999 }}
@@ -68,6 +67,14 @@ spec:
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+        securityContext:
+          runAsNonRoot: {{ .Values.postgresql.securityContext.runAsNonRoot | default true }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           exec:
             command:

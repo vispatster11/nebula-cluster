@@ -99,6 +99,10 @@ jobs:
           echo "$HOME/bin" >> $GITHUB_PATH
 
           mkdir -p /tmp/k3d-storage
+          # Pre-set permissions on the host directory to match the container's user ID.
+          # This provides an extra layer of assurance for the local-path-provisioner.
+          echo "Setting ownership of /tmp/k3d-storage to 999:999"
+          sudo chown -R 999:999 /tmp/k3d-storage
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
           k3d cluster create ci-cluster \
             --image rancher/k3s:v1.29.11-k3s1 \
