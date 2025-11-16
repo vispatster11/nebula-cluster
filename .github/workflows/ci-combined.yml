@@ -172,6 +172,8 @@ jobs:
               exit 0
             else
               echo "--- Found non-ready pods. Watching cluster state... ---"
+              kubectl get all -n $NAMESPACE
+              echo "^^^"
               echo "$BAD_PODS"
               echo "--- Events ---"
               kubectl get events -n $NAMESPACE --sort-by='.metadata.creationTimestamp' | tail -n 10

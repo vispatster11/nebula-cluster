@@ -34,8 +34,6 @@ spec:
       - name: wait-for-postgres
         # use postgres client image to get pg_isready utility
         image: {{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}
-        securityContext:
-          runAsNonRoot: false
         command:
         - sh
         - -c
