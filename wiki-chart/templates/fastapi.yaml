@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: {{ include "wiki-chart.fullname" . }}-fastapi
   labels:
+    {{- .Values.fastapi.selectorLabels | toYaml | nindent 4 }}
     {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
   type: ClusterIP

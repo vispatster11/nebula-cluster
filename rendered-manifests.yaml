@@ -266,7 +266,7 @@ metadata:
   namespace: local-test
 type: Opaque
 stringData:
-  password: dzP7TzXUwSk8hBO46pzhyrSeEhsepQpe
+  password: zYEiTDJ3Ua7yYxDVpwlSkr2sjsvcC3uM
 ---
 # Source: wiki-chart/templates/grafana-dashboard-provider.yaml
 apiVersion: v1
@@ -500,6 +500,7 @@ kind: Service
 metadata:
   name: local-release-wiki-chart-fastapi
   labels:
+    app: fastapi
     helm.sh/chart: wiki-chart-1.0.0
     app.kubernetes.io/name: wiki-chart
     app.kubernetes.io/instance: local-release
@@ -557,6 +558,7 @@ metadata:
   name: local-release-wiki-chart-prometheus
   namespace: local-test
   labels:
+    app: prometheus
     app: prometheus
 spec:
   type: ClusterIP

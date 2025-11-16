@@ -61,6 +61,44 @@ kubectl get pods -n "${NAMESPACE}"
 echo "--- Running application tests (helm test) ---"
 helm test "${RELEASE_NAME}" --namespace "${NAMESPACE}" --logs --timeout 5m
 
+echo "--- Testing Ingress Endpoints ---"
+# Set up port forwarding to the k3d ingress controller's load balancer service
+kubectl port-forward --namespace kube-system "service/k3d-${CLUSTER_NAME}-serverlb" 8080:80 >/dev/null 2>&1 &
+PORT_FORWARD_PID=$!
+sleep 5 # Allow time for port-forward to establish
+
+BASE_URL="http://localhost:8080"
+
+# Test 1: FastAPI root endpoint
+echo "Testing FastAPI root endpoint..."
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" --connect-timeout 5 --max-time 10 -H "Host: localhost" "$BASE_URL/")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | awk -F: '{print $2}')
+echo "Response Body: $(echo "$RESPONSE" | sed '$d')"
+if [ "$HTTP_CODE" -eq 200 ]; then
+  echo "✓ PASSED: FastAPI root is accessible via ingress with status 200."
+else
+  echo "✗ FAILED: Expected status 200 for FastAPI root, but got $HTTP_CODE."
+  kill $PORT_FORWARD_PID
+  exit 1
+fi
+echo ""
+
+# Test 2: Grafana dashboard
+echo "Testing Grafana dashboard access..."
+RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" --connect-timeout 5 --max-time 10 -H "Host: localhost" -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | awk -F: '{print $2}')
+echo "Response Status: $HTTP_CODE"
+if [ "$HTTP_CODE" -eq 200 ]; then
+  echo "✓ PASSED: Grafana dashboard is accessible via ingress with status 200."
+else
+  echo "✗ FAILED: Expected status 200 for Grafana dashboard via ingress, but got $HTTP_CODE."
+  kill $PORT_FORWARD_PID
+  exit 1
+fi
+
+# Clean up the port-forward process
+kill $PORT_FORWARD_PID
+
 # --- 4. Cleanup ---
 echo "--- Cleaning up ---"
 read -p "Press Enter to delete the k3d cluster..."
