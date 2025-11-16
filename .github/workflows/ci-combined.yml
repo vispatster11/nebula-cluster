@@ -243,7 +243,7 @@ jobs:
               echo "✓ Ingress is ready."
               break
             fi
-            echo "Waiting for ingress to be ready... ([33m$i/12[0m)"
+            echo "Waiting for ingress to be ready... ($i/12)"
             sleep 5
           done
 
