@@ -229,7 +229,7 @@ jobs:
           echo "Testing Grafana dashboard access..."
           # Check for a 200 OK, which confirms the ingress and service are working.
           # The -u admin:admin is required by the assignment.
-          http_code=$(curl -s -o /dev/null -w '%{http_code}' -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
+          http_code=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: localhost" -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
           if [ "$http_code" -eq 200 ]; then
             echo "✓ PASSED: Grafana dashboard is accessible via ingress with status 200."
           else
