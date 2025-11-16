@@ -15,7 +15,7 @@ jobs:
   python-quality:
     name: Python Code Quality
     # runs-on: ubuntu-latest
-    runs-on: 172
+    runs-on: [self-hosted, Linux, X64, 172]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
   helm-lint:
     name: Helm Chart Validation
     # runs-on: ubuntu-latest
-    runs-on: 172
+    runs-on: [self-hosted, Linux, X64, 172]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
   integration-test:
     name: Integration Tests (k3d)
     # runs-on: ubuntu-latest
-    runs-on: 172
+    runs-on: [self-hosted, Linux, X64, 172]
     needs: [python-quality, helm-lint]
     if: always() && needs.python-quality.result == 'success' && needs.helm-lint.result == 'success'
     steps:
