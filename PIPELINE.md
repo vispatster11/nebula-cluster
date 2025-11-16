@@ -131,7 +131,7 @@ bash verify-pipeline-fixes.sh
 **Full k3d test (10 min):**
 
 ```powershell
-k3d cluster create test-wiki --image rancher/k3s:v1.31.13-k3s1
+k3d cluster create test-wiki --image rancher/k3s:v1.29.11-k3s1
 docker build -t wiki-service:test wiki-service/
 k3d image import wiki-service:test -c test-wiki
 

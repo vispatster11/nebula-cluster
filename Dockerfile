@@ -1,15 +1,15 @@
 # Multi-stage build: Final stage is Docker-in-Docker with k3d cluster
-FROM docker:27.3.1-dind
+FROM docker:26.1-dind
 
 # Install required tools
 RUN apk add --no-cache \
     bash \
     curl \
     wget \
-    git \
     jq \
     kubectl \
     helm \
+    git \
     && echo "Tools installed"
 
 # Install k3d (v5.8.3 for k3s v1.31.5)
