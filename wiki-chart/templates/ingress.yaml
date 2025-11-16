@@ -18,28 +18,28 @@ spec:
           service:
             name: {{ include "wiki-chart.fullname" . }}-fastapi
             port:
-              number: {{ .Values.fastapi.port }}
+              number: {{ .Values.fastapi.port | default 8000 }}
       - path: /posts
         pathType: Prefix
         backend:
           service:
             name: {{ include "wiki-chart.fullname" . }}-fastapi
             port:
-              number: {{ .Values.fastapi.port }}
+              number: {{ .Values.fastapi.port | default 8000 }}
       - path: /user
         pathType: Prefix
         backend:
           service:
             name: {{ include "wiki-chart.fullname" . }}-fastapi
             port:
-              number: {{ .Values.fastapi.port }}
+              number: {{ .Values.fastapi.port | default 8000 }}
       - path: /metrics
         pathType: Exact
         backend:
           service:
             name: {{ include "wiki-chart.fullname" . }}-fastapi
             port:
-              number: {{ .Values.fastapi.port }}
+              number: {{ .Values.fastapi.port | default 8000 }}
       # Root/info endpoint
       - path: /
         pathType: Prefix
@@ -47,7 +47,7 @@ spec:
           service:
             name: {{ include "wiki-chart.fullname" . }}-fastapi
             port:
-              number: {{ .Values.fastapi.port }}
+              number: {{ .Values.fastapi.port | default 8000 }}
       # Grafana endpoint
       - path: /grafana
         pathType: Prefix
@@ -55,4 +55,4 @@ spec:
           service:
             name: {{ include "wiki-chart.fullname" . }}-grafana
             port:
-              number: 3000
+              number: {{ .Values.grafana.port | default 3000 }}

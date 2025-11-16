@@ -35,7 +35,7 @@ spec:
           echo "Waiting for FastAPI service to be ready..."
           i=1
           while [ $i -le 30 ]; do
-            if curl -s -f --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} http://{{ include "wiki-chart.fullname" . }}-fastapi:8000/ > /dev/null 2>&1; then
+            if curl -s -f --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} http://{{ include "wiki-chart.fullname" . }}-fastapi:{{ .Values.fastapi.port }}/ > /dev/null 2>&1; then
               echo "✓ FastAPI service is ready"
               break
             fi
@@ -49,7 +49,7 @@ spec:
             exit 1
           fi
 
-          BASE_URL="http://{{ include "wiki-chart.fullname" . }}-fastapi:8000"
+          BASE_URL="http://{{ include "wiki-chart.fullname" . }}-fastapi:{{ .Values.fastapi.port }}"
           
           # Test 1: Root endpoint
           echo ""
@@ -95,7 +95,7 @@ spec:
           echo "Test 4: POST /posts (create post)"
           POST_RESPONSE=$(curl -s --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} -X POST "$BASE_URL/posts" \
             -H "Content-Type: application/json" \
-            -d '{"user_id": 1, "content": "Test post"}')
+            -d '{"user_id": '$USER_ID', "content": "Test post"}')
           echo "Response: $POST_RESPONSE"
           if echo "$POST_RESPONSE" | grep -q '"post_id"'; then
             echo "✓ Create post works"
@@ -132,7 +132,7 @@ spec:
           # Test 7: Grafana health endpoint
           echo ""
           echo "Test 7: GET /api/health (Grafana health)"
-          GRAFANA_URL="http://{{ include "wiki-chart.fullname" . }}-grafana:3000"
+          GRAFANA_URL="http://{{ include "wiki-chart.fullname" . }}-grafana:{{ .Values.grafana.port }}"
           RESPONSE=$(curl -s --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} "$GRAFANA_URL/api/health")
           echo "Response: $RESPONSE"
           if echo "$RESPONSE" | grep -q '"database":"ok"'; then
@@ -145,7 +145,7 @@ spec:
           # Test 8: Prometheus health endpoint
           echo ""
           echo "Test 8: GET /-/healthy (Prometheus health)"
-          PROMETHEUS_URL="http://{{ include "wiki-chart.fullname" . }}-prometheus:9090"
+          PROMETHEUS_URL="http://{{ include "wiki-chart.fullname" . }}-prometheus:{{ .Values.prometheus.port }}"
           RESPONSE=$(curl -s --connect-timeout {{ .Values.test.curl.connectTimeout }} --max-time {{ .Values.test.curl.maxTime }} "$PROMETHEUS_URL/-/healthy")
           echo "Response: $RESPONSE"
           if echo "$RESPONSE" | grep -q "Prometheus is Healthy."; then

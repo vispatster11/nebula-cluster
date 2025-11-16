@@ -19,8 +19,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   podSelector:
-    matchLabels:
-      {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
+    matchLabels: {{ .Values.fastapi.selectorLabels | toYaml | nindent 6 }}
   policyTypes:
     - Ingress
     - Egress
@@ -69,7 +68,7 @@ spec:
             matchLabels: {{ .Values.postgresql.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
-          port: 5432
+          port: {{ .Values.postgresql.port }}
     # Allow DNS requests for service discovery
     - to:
         - namespaceSelector:
@@ -97,7 +96,7 @@ spec:
               {{- include "wiki-chart.selectorLabels" . | nindent 14 }}
       ports:
         - protocol: TCP
-          port: 5432
+          port: {{ .Values.postgresql.port }}
 ---
 # Allow traffic to Grafana from the Ingress Controller and test job
 apiVersion: networking.k8s.io/v1
@@ -131,4 +130,4 @@ spec:
               {{- .Values.test.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
-          port: 3000
+          port: {{ .Values.grafana.port }}

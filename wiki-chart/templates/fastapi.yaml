@@ -38,7 +38,7 @@ spec:
         - sh
         - -c
         - |
-          until pg_isready -h {{ include "wiki-chart.fullname" . }}-postgres -p 5432 -U {{ .Values.postgresql.auth.username }}; do
+          until pg_isready -h {{ include "wiki-chart.fullname" . }}-postgres -p {{ .Values.postgresql.port }} -U {{ .Values.postgresql.auth.username }}; do
             echo "Waiting for Postgres to be ready..."
             sleep 2
           done
@@ -57,9 +57,9 @@ spec:
               name: {{ include "wiki-chart.fullname" . }}-postgres-secret
               key: password
         - name: DB_HOST
-          value: {{ include "wiki-chart.fullname" . }}-postgres
+          value: "{{ include "wiki-chart.fullname" . }}-postgres"
         - name: DB_PORT
-          value: "5432"
+          value: "{{ .Values.postgresql.port }}"
         - name: DB_NAME
           value: {{ .Values.postgresql.auth.database }}
         resources:

@@ -22,6 +22,8 @@ fastapi:
     limits:
       cpu: 500m
       memory: 1Gi
+  selectorLabels:
+    app: fastapi
 
 # PostgreSQL Configuration
 postgresql:
@@ -34,6 +36,7 @@ postgresql:
     username: postgres
     password: ""  # Auto-generate if empty
     database: wiki
+  port: 5432
   primary:
     persistence:
       size: 2Gi
@@ -64,6 +67,7 @@ prometheus:
     repository: "prom/prometheus"
     tag: "v2.48.0"
     pullPolicy: IfNotPresent
+  port: 9090
   replicas: 1
   resources:
     requests:
@@ -89,6 +93,7 @@ grafana:
     repository: "grafana/grafana"
     tag: "9.0.0"
     pullPolicy: IfNotPresent
+  port: 3000
   # Grafana admin password: leave empty to auto-generate via Helm helper.
   # If you need a deterministic password for grading, set this value via
   # --set grafana.adminPassword="my-password" when installing.
