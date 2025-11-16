@@ -100,48 +100,64 @@ jobs:
         uses: actions/checkout@v4
 
 
-      - name: Create k3d cluster
-        uses: AbsaOSS/k3d-action@v1.2.0
-        with:
-          cluster-name: my-test-cluster
-          # k3d uses the local-path-provisioner by default (it's a k3s feature)
-          # We can also expose ingress ports if needed
-          # ingressPort: 8080
+      # - name: Create k3d cluster
+      #   uses: AbsaOSS/k3d-action@v1.2.0
+      #   with:
+      #     cluster-name: my-test-cluster
+      #     # k3d uses the local-path-provisioner by default (it's a k3s feature)
+      #     # We can also expose ingress ports if needed
+      #     # ingressPort: 8080
 
-      - name: Verify cluster and local-path-provisioner
+      # - name: Verify cluster and local-path-provisioner
+      #   run: |
+      #     echo "Kubeconfig is available at: $KUBECONFIG"
+      #     kubectl cluster-info
+      #     kubectl get nodes
+      #     # Check for the local-path-provisioner components
+      #     kubectl get pods -n kube-system -l app=local-path-provisioner
+
+
+      - name: Install and create k3d cluster
         run: |
-          echo "Kubeconfig is available at: $KUBECONFIG"
-          kubectl cluster-info
-          kubectl get nodes
-          # Check for the local-path-provisioner components
-          kubectl get pods -n kube-system -l app=local-path-provisioner
+          # Create a directory on the runner to act as the persistent storage
+          mkdir -p /tmp/k3d-storage
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
 
+          
+      - name: Configure local-path-provisioner (stable CI-safe version)
+        run: |
+          # Apply local-path-provisioner config
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: local-path-config
+            namespace: kube-system
+          data:
+            config.json: |
+              { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
+          EOF
 
-      # - name: Install and create k3d cluster
-      #   run: |
-      #     # Create a directory on the runner to act as the persistent storage
-      #     mkdir -p /tmp/k3d-storage
-      #     curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-      #     k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
+          echo "Waiting for local-path-provisioner pod to be created..."
+          for i in {1..60}; do
+            POD=$(kubectl get pod -n kube-system | grep local-path-provisioner | awk '{print $1}')
+            if [ -n "$POD" ]; then
+              echo "Found pod: $POD"
+              break
+            fi
+            sleep 2
+          done
 
-      # - name: Configure k3d local-path provisioner
-      #   run: |
-      #     cat <<EOF | kubectl apply -f -
-      #     apiVersion: v1
-      #     kind: ConfigMap
-      #     metadata:
-      #       name: local-path-config
-      #       namespace: kube-system
-      #     data:
-      #       config.json: |
-      #         { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
-      #     EOF
+          if [ -z "$POD" ]; then
+            echo "ERROR: local-path-provisioner pod never appeared."
+            kubectl get pods -n kube-system
+            exit 1
+          fi
 
-      #     echo "Waiting for local-path-provisioner to be ready..."
-      #     kubectl wait --for=condition=ready pod \
-      #       -l k8s-app=local-path-provisioner \
-      #       -n kube-system \
-      #       --timeout=120s
+          echo "Waiting for local-path-provisioner pod to be Ready..."
+          kubectl wait --for=condition=Ready "pod/$POD" -n kube-system --timeout=180s
+
 
       - name: Download and import image
         uses: actions/download-artifact@v4
