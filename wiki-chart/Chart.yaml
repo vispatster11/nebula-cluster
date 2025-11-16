@@ -1,0 +1,13 @@
+apiVersion: v2
+name: wiki-chart
+description: A Helm chart for Wiki API service with PostgreSQL, Prometheus, and Grafana
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - fastapi
+  - postgresql
+  - prometheus
+  - grafana
+maintainers:
+  - name: Wiki Service
