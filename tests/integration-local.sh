@@ -72,8 +72,8 @@ if [ -n "$POD_NAME" ]; then
 fi
 
 echo "--- Testing Ingress Endpoints ---"
-# Set up port forwarding to the k3d ingress controller's load balancer service
-kubectl port-forward --namespace kube-system "service/k3d-${CLUSTER_NAME}-serverlb" 8080:80 >/dev/null 2>&1 &
+# Set up port forwarding to the traefik ingress controller
+kubectl port-forward --namespace kube-system svc/traefik 8080:80 >/dev/null 2>&1 &
 PORT_FORWARD_PID=$!
 sleep 5 # Allow time for port-forward to establish
 
