@@ -99,31 +99,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install and create k3d cluster
-        run: |
-          # Create a directory on the runner to act as the persistent storage
-          mkdir -p /tmp/k3d-storage
-          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
 
-      - name: Configure k3d local-path provisioner
-        run: |
-          cat <<EOF | kubectl apply -f -
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: local-path-config
-            namespace: kube-system
-          data:
-            config.json: |
-              { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
-          EOF
+      - name: Create k3d cluster
+        uses: AbsaOSS/k3d-action@v1.2.0
+        with:
+          cluster-name: my-test-cluster
+          # k3d uses the local-path-provisioner by default (it's a k3s feature)
+          # We can also expose ingress ports if needed
+          # ingressPort: 8080
 
-          echo "Waiting for local-path-provisioner to be ready..."
-          kubectl wait --for=condition=ready pod \
-            -l k8s-app=local-path-provisioner \
-            -n kube-system \
-            --timeout=120s
+      - name: Verify cluster and local-path-provisioner
+        run: |
+          echo "Kubeconfig is available at: $KUBECONFIG"
+          kubectl cluster-info
+          kubectl get nodes
+          # Check for the local-path-provisioner components
+          kubectl get pods -n kube-system -l app=local-path-provisioner
+
+
+      # - name: Install and create k3d cluster
+      #   run: |
+      #     # Create a directory on the runner to act as the persistent storage
+      #     mkdir -p /tmp/k3d-storage
+      #     curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+      #     k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1 --volume /tmp/k3d-storage:/var/lib/rancher/k3s/storage@server:0
+
+      # - name: Configure k3d local-path provisioner
+      #   run: |
+      #     cat <<EOF | kubectl apply -f -
+      #     apiVersion: v1
+      #     kind: ConfigMap
+      #     metadata:
+      #       name: local-path-config
+      #       namespace: kube-system
+      #     data:
+      #       config.json: |
+      #         { "nodePathMap": [ { "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES", "paths": [ "/var/lib/rancher/k3s/storage" ] } ] }
+      #     EOF
+
+      #     echo "Waiting for local-path-provisioner to be ready..."
+      #     kubectl wait --for=condition=ready pod \
+      #       -l k8s-app=local-path-provisioner \
+      #       -n kube-system \
+      #       --timeout=120s
 
       - name: Download and import image
         uses: actions/download-artifact@v4
