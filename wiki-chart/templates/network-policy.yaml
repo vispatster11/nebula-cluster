@@ -90,12 +90,11 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Allow from the FastAPI app
     - from:
+        # Allow from the FastAPI app
         - podSelector:
             matchLabels: {{ .Values.fastapi.selectorLabels | toYaml | nindent 14 }}
-    # Allow from the test job
-    - from:
+        # Allow from the test job
         - podSelector:
             matchLabels: {{ .Values.test.selectorLabels | toYaml | nindent 14 }}
       ports:
