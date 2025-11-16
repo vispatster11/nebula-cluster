@@ -26,11 +26,11 @@ bash ./tests/helm-validate.sh
 
 # --- 2. Setup Local Environment ---
 echo "--- Creating k3d cluster: ${CLUSTER_NAME} ---"
-# k3d cluster create "${CLUSTER_NAME}" --wait
+k3d cluster create "${CLUSTER_NAME}" --wait
 
 echo "--- Building and loading Docker image: ${FULL_IMAGE_NAME} ---"
 docker build -t "${FULL_IMAGE_NAME}" "${APP_PATH}"
-# k3d image import "${FULL_IMAGE_NAME}" -c "${CLUSTER_NAME}"
+k3d image import "${FULL_IMAGE_NAME}" -c "${CLUSTER_NAME}"
 
 echo "--- Detecting default storage class ---"
 DEFAULT_STORAGE_CLASS=$(kubectl get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
@@ -59,7 +59,17 @@ echo "--- Pods in namespace ${NAMESPACE}: ---"
 kubectl get pods -n "${NAMESPACE}"
 
 echo "--- Running application tests (helm test) ---"
-helm test "${RELEASE_NAME}" --namespace "${NAMESPACE}" --logs --timeout 5m
+# Run helm test to execute the job, but don't stream logs directly, as it can be flaky.
+# This command will wait for the job to complete and report success/failure.
+helm test "${RELEASE_NAME}" --namespace "${NAMESPACE}" --timeout 5m
+
+echo "--- Retrieving logs from test pod ---"
+# Find the pod created by the test job using its unique label and get its logs.
+# This is more reliable than `helm test --logs`.
+POD_NAME=$(kubectl get pod -n "${NAMESPACE}" -l "app.kubernetes.io/component=test" -o jsonpath='{.items[0].metadata.name}')
+if [ -n "$POD_NAME" ]; then
+  kubectl logs -n "${NAMESPACE}" "$POD_NAME" | tee test-job-output.log
+fi
 
 echo "--- Testing Ingress Endpoints ---"
 # Set up port forwarding to the k3d ingress controller's load balancer service

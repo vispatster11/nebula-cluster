@@ -2,43 +2,22 @@
 
 This Helm chart packages the entire Wiki API service stack for Kubernetes: a FastAPI application, PostgreSQL database, Prometheus monitoring, and Grafana dashboards.
 
-## Why Use This Chart?
-
-Instead of manually writing and managing Kubernetes manifests, this chart automates the deployment of the entire application stack. It handles:
-- Database setup with persistent storage
-- FastAPI with auto-retry on DB failure
-- Prometheus + Grafana monitoring
-- Ingress routing and network policies
-- Security (non-root users, resource limits, RBAC)
-
-## What's Included
-
-1. FastAPI service (2 replicas)
-2. PostgreSQL database (2Gi persistent storage)
-3. Prometheus server (2Gi persistent storage)
-4. Grafana instance (1Gi persistent storage, with a pre-configured dashboard)
-5. Ingress for routing external traffic
-6. Network policies for secure, in-cluster communication
-
 ## Prerequisites
 
 - Kubernetes 1.28+
 - Helm 3.x
-- Storage class (e.g., `local-path` for k3d)
-- Ingress controller (k3d includes Traefik)
-- A pre-built FastAPI Docker image
+- A running Kubernetes cluster (like k3d or Docker Desktop)
+- An Ingress Controller (k3d includes Traefik by default)
 
-## Install
+## Local Development and Testing
 
-**1. Build image:**
+This project includes scripts to simplify local development and testing.
+
+### 1. Validate the Helm Chart
+Before deploying, you can lint the chart and render the templates to check for errors.
 
 ```bash
-docker build -t wiki-service:0.1.0 wiki-service/
-```
-
-For k3d:
-```bash
-k3d image import wiki-service:0.1.0 -c your-cluster
+bash ./tests/helm-validate.sh
 ```
 
 **2. Create namespace:**

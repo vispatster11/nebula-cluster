@@ -32,8 +32,7 @@ metadata:
   name: {{ include "wiki-chart.fullname" . }}-prometheus
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- .Values.prometheus.selectorLabels | toYaml | nindent 4 }}
-    app: prometheus
+    {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -41,7 +40,7 @@ spec:
     targetPort: 9090
     protocol: TCP
   selector:
-    app: prometheus
+    {{- include "wiki-chart.selectorLabels" . | nindent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -49,17 +48,16 @@ metadata:
   name: {{ include "wiki-chart.fullname" . }}-prometheus
   namespace: {{ .Release.Namespace }}
   labels:
-    app: prometheus
-    release: {{ .Release.Name }}
+    {{- include "wiki-chart.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prometheus
+      {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: prometheus
+        {{- include "wiki-chart.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "wiki-chart.fullname" . }}-prometheus
       securityContext:
