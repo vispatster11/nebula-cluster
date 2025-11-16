@@ -211,12 +211,20 @@ jobs:
             echo "----------------------"
           done
           
+
       - name: Run Application Tests (helm test)
         run: |
           # Use the built-in Helm test runner to execute the tests defined in test-job.yaml
           # This is the standard, idiomatic way to run tests with Helm.
           # The --timeout flag prevents the pipeline from getting stuck if tests hang.
-          helm test ci-release --namespace ci-test --logs --timeout 5m
+          helm test ci-release --namespace ci-test --timeout 5m
+
+          echo "--- Fetching logs for all test pods ---"
+          for pod in $(kubectl get pods -n ci-test -l "app.kubernetes.io/component=test" -o jsonpath='{.items[*].metadata.name}'); do
+            echo "--- Logs for $pod ---"
+            kubectl logs -n ci-test "$pod" || echo "Could not retrieve logs for $pod."
+            echo "----------------------"
+          done
 
       - name: Test Ingress and Grafana
         run: |

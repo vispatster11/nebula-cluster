@@ -21,10 +21,10 @@ This script:
 
 ### View Test Logs
 ```bash
-# Live test output (inside container)
+# View logs (inside container)
 kubectl -n local-test logs -l "app.kubernetes.io/component=test"
 
-# Saved output file
+# Saved log file
 cat test-job-output.log
 ```
 
@@ -38,11 +38,6 @@ curl -H "Host: localhost" http://localhost:8080/                    # FastAPI ro
 curl -H "Host: localhost" http://localhost:8080/grafana/d/creation-dashboard-678/creation -u admin:admin
 ```
 
-## Directory Structure
-- `wiki-service/` — FastAPI app with PostgreSQL support, `/metrics` endpoint
-- `wiki-chart/` — Helm chart (FastAPI, PostgreSQL, Prometheus, Grafana, NetworkPolicies, Ingress)
-- `tests/` — Integration test scripts (logs saved here)
-- `Dockerfile`, `entrypoint.sh` — Part 2: k3d cluster in Docker container
 
 ## Resources
 FastAPI (500m/1Gi) + PostgreSQL (500m/1Gi) + Prometheus (500m/1Gi) + Grafana (200m/256Mi) = **1.7 CPU / 3.3GB RAM / 5GB disk** ✓

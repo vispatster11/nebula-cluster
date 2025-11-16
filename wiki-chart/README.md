@@ -12,7 +12,7 @@ Packages FastAPI, PostgreSQL, Prometheus, Grafana for Kubernetes.
 ✓ Prometheus metrics scraping + Grafana dashboard (`/d/creation-dashboard-678/creation`)  
 ✓ Traefik Ingress routing (`/users/*`, `/posts/*`, `/grafana/*`)  
 ✓ NetworkPolicies for least-privilege access  
-✓ Auto-generated credentials stored in secrets  
+✓ Credentials stored in secrets
 ✓ Resource limits: 1.7 CPU, 3.3GB RAM, 5GB disk  
 
 ## Quick Install
@@ -119,23 +119,6 @@ helm uninstall wiki-service --namespace wiki-prod
 kubectl delete namespace wiki-prod
 ```
 
-## Chart Structure
-
-```
-wiki-chart/
-├── Chart.yaml                      # Chart metadata (name, version)
-├── values.yaml                     # Default configuration
-├── README.md                        # This file
-└── templates/
-    ├── _helpers.tpl                # Shared template helpers
-    ├── fastapi.yaml                # FastAPI Deployment, Service
-    ├── postgres.yaml               # PostgreSQL StatefulSet, PVC, Secret
-    ├── prometheus.yaml             # Prometheus ConfigMap, Deployment, PVC, RBAC
-    ├── grafana.yaml                # Grafana Deployment, Service, Dashboard ConfigMaps
-    ├── ingress.yaml                # Kubernetes Ingress for routing
-    ├── network-policy.yaml         # Network policies (default-deny + allow rules)
-    └── pdb-fastapi.yaml            # Pod Disruption Budget (for high availability)
-```
 
 ## Troubleshooting
 
@@ -173,7 +156,7 @@ Fix any reported issues in the templates.
 
 ### Can't Access Grafana Dashboard
 
-Ensure the `grafana.adminPassword` was set (auto-generated if empty). Retrieve it:
+Ensure the `grafana.adminPassword` was set (see secret if empty). Retrieve it:
 
 ```bash
 kubectl get secret wiki-service-grafana-secret -n wiki-prod \
@@ -183,7 +166,7 @@ kubectl get secret wiki-service-grafana-secret -n wiki-prod \
 ## Best Practices
 
 1. **Always specify a namespace**: Keeps deployments isolated
-2. **Use persistent passwords**: Don't let Grafana auto-generate on every install
+2. **Use persistent passwords**: Don't let Grafana generate a new password on every install
 3. **Pin image tags**: Never use `:latest` in production
 4. **Monitor metrics**: Use Grafana to catch issues early
 5. **Set resource requests**: Helps Kubernetes schedule pods efficiently
@@ -194,4 +177,3 @@ kubectl get secret wiki-service-grafana-secret -n wiki-prod \
 For issues or questions, check:
 - Pod logs: `kubectl logs -n wiki-prod <pod-name>`
 - Pod events: `kubectl describe pod -n wiki-prod <pod-name>`
-- The main `../PIPELINE.md` guide for deployment steps

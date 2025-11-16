@@ -49,7 +49,7 @@ Grafana:
 ```bash
 kubectl port-forward -n wiki-prod svc/wiki-service-wiki-chart-grafana 3000:3000
 # Open http://localhost:3000/d/creation-dashboard-678/creation
-# Login: admin / (auto-generated password)
+# Login: admin / (see secret for password)
 ```
 
 ## Resource Usage
@@ -64,9 +64,9 @@ kubectl port-forward -n wiki-prod svc/wiki-service-wiki-chart-grafana 3000:3000
 
 Fits within 2 CPUs, 4GB RAM, 5GB disk limit.
 
-## Get Auto-Generated Credentials
+## Get Credentials
 
-PostgreSQL and Grafana passwords are auto-generated on install. To retrieve them:
+PostgreSQL and Grafana passwords are generated on install. To retrieve them:
 
 ```bash
 # Postgres
@@ -96,9 +96,8 @@ helm install wiki-service ./wiki-chart --namespace wiki-prod \
 
 **Quick check (2 min):**
 
-```powershell
+```bash
 bash tests/helm-validate.sh
-bash verify-pipeline-fixes.sh
 ```
 
 **Full k3d test (10 min):**
@@ -134,11 +133,6 @@ Always use `--namespace`:
 helm install wiki-service ./wiki-chart --namespace wiki-prod
 ```
 
-**Docker build fails in CI:**
-```powershell
-docker build wiki-service/ -t wiki-service:test
-```
-Check: `requirements.txt` syntax, relative paths, `COPY` instructions.
 
 **Ingress not routing:**
 ```powershell
@@ -147,31 +141,7 @@ kubectl get ingressclass
 ```
 For k3d, Traefik is pre-installed. For cloud, install nginx-ingress.
 
-## File Structure
-
-```
-wiki-service/
-├─ main.py, database.py, models.py, schemas.py, metrics.py, test_api.py
-├─ Dockerfile, requirements.txt
-
-wiki-chart/
-├─ Chart.yaml, values.yaml
-└─ templates/
-   ├─ fastapi.yaml, postgres.yaml, prometheus.yaml, grafana.yaml
-   ├─ ingress.yaml, network-policy.yaml, _helpers.tpl
-
-.github/workflows/
-├─ ci-1.yml   # Approach 1: Sequential Pipeline
-├─ ci-2.yml   # Approach 2: Independent Python check
-├─ ci-3.yml   # Approach 2: Independent Docker scan
-├─ ci-4.yml   # Approach 2: Independent Helm lint
-└─ ci-5.yml   # Approach 2: Independent Integration test
-
 tests/
-├─ helm-validate.sh, integration-local.sh
-
-PIPELINE.md — This guide
-```
 
 ## Quick Commands
 

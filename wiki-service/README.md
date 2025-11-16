@@ -46,7 +46,7 @@ Multi-stage build, runs as non-root user.
 
 ## Deploy to Kubernetes
 
-Use Helm chart in `../wiki-chart/`. See `../PIPELINE.md` for instructions.
+Use Helm chart in `../wiki-chart/`.
 
 ## Architecture
 
