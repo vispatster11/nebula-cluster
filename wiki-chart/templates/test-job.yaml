@@ -72,7 +72,7 @@ spec:
           echo "Response: $USER_RESPONSE"
           if echo "$USER_RESPONSE" | grep -q '"id"'; then
             echo "✓ Create user works"
-            USER_ID=$(echo "$USER_RESPONSE" | grep -o '"id": *[0-9]*' | awk -F': ' '{print $2}')
+            USER_ID=$(echo "$USER_RESPONSE" | grep -o '"id":[0-9]*' | cut -d':' -f2)
           else
             echo "✗ Create user failed"
             exit 1
@@ -99,7 +99,7 @@ spec:
           echo "Response: $POST_RESPONSE"
           if echo "$POST_RESPONSE" | grep -q '"post_id"'; then
             echo "✓ Create post works"
-            POST_ID=$(echo "$POST_RESPONSE" | grep -o '"post_id": *[0-9]*' | awk -F': ' '{print $2}')
+            POST_ID=$(echo "$POST_RESPONSE" | grep -o '"post_id":[0-9]*' | cut -d':' -f2)
           else
             echo "✗ Create post failed"
             exit 1
