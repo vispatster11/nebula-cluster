@@ -1,13 +1,4 @@
-# Wiki Service Deployment & Pipeline Guide
-
-This guide covers deploying the Wiki API stack (FastAPI, PostgreSQL, Prometheus, Grafana) to Kubernetes using Helm, along with local testing procedures and an overview of the CI/CD pipeline.
-
-## Components
-
-1. **FastAPI** — REST API for users and posts, with a `/metrics` endpoint for Prometheus.
-2. **PostgreSQL** — Persistent data storage using the asyncpg driver and SQLAlchemy.
-3. **Prometheus** — Scrapes metrics from the FastAPI service every 15 seconds.
-4. **Grafana** — Visualizes key metrics on a pre-configured dashboard.
+# Deployment Guide
 
 ## Prerequisites
 
@@ -15,8 +6,6 @@ This guide covers deploying the Wiki API stack (FastAPI, PostgreSQL, Prometheus,
 - Helm 3.x
 - Docker
 - kubectl configured
-
-## Local Deployment (k3d)
 
 **1. Build the Docker Image:**
 
@@ -102,22 +91,6 @@ helm install wiki-service ./wiki-chart --namespace wiki-prod \
 helm install wiki-service ./wiki-chart --namespace wiki-prod \
   --set grafana.enabled=false --set prometheus.enabled=false
 ```
-
-## CI Pipeline: Two Approaches
-
-**Approach 1: Independent Workflows**
-
-Each stage runs as a separate, independent workflow, triggered only by changes to relevant files. This provides fast, targeted feedback.
-- `ci-2.yml` — Lints and scans Python code.
-- `ci-3.yml` — Builds and scans the Docker image.
-- `ci-4.yml` — Validates the Helm chart.
-- `ci-5.yml` — Runs a full deployment test in a k3d cluster.
-
-**Approach 2: Sequential Pipeline**
-
-A single workflow (`ci-1.yml`) runs all jobs in a specific order. If any job fails, subsequent jobs are skipped. This is ideal for pull request checks to ensure all quality gates are passed before merging.
-- **File**: `.github/workflows/ci-1.yml`
-- **Trigger**: Manual dispatch (`workflow_dispatch`) or on push/PR to `main`.
 
 ## Test Locally
 

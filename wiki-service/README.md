@@ -1,53 +1,28 @@
-# Wiki Service
+# Wiki Service - FastAPI REST API
 
-FastAPI REST API for users and posts with Prometheus metrics and PostgreSQL.
+FastAPI REST API with PostgreSQL backend, Prometheus `/metrics` endpoint. Part of wiki-chart Helm deployment.
 
-## Local Setup
-
-**Prerequisites:** Python 3.13, PostgreSQL (or Docker)
-
-**1. Install dependencies:**
+## Local Development (without k3d)
 ```bash
+# Install deps
 pip install -r requirements.txt
-```
 
-**2. Start PostgreSQL:**
-```bash
+# Start PostgreSQL
 docker run -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=wiki -p 5432:5432 postgres:15-alpine
-```
 
-**3. Run the app:**
-```bash
+# Run API
 uvicorn main:app --reload
 ```
-
-API: `http://localhost:8000`
-Docs: `http://localhost:8000/docs`
+API: `http://localhost:8000` | Docs: `http://localhost:8000/docs`
 
 ## API Endpoints
-
 - `POST /users` — Create user
-- `GET /users` — List users
 - `GET /user/{id}` — Get user
 - `POST /posts` — Create post
 - `GET /posts/{id}` — Get post
 - `GET /metrics` — Prometheus metrics
-- `GET /docs` — Interactive API docs
 
-## Test It
-
-```bash
-# Create user
-curl -X POST http://localhost:8000/users \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Alice", "email": "alice@example.com"}'
-
-# Create post
-curl -X POST http://localhost:8000/posts \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": 1, "title": "First", "content": "Hello"}'
-
-# View metrics
+For full deployment, see root `README.md`.
 curl http://localhost:8000/metrics
 ```
 
