@@ -93,7 +93,195 @@ kubectl get pods -n wiki-prod
 kubectl get svc -n wiki-prod
 ```
 
-All pods should reach "Running" state within 2-3 minutes.
+# Wiki Service Helm Chart
+
+Deploy FastAPI + PostgreSQL + Prometheus + Grafana to Kubernetes with one command.
+
+## Why?
+
+Instead of manually writing YAML manifests, this chart handles:
+- Database setup with persistent storage
+- FastAPI with auto-retry on DB failure
+- Prometheus + Grafana monitoring
+- Ingress routing and network policies
+- Security (non-root users, resource limits, RBAC)
+
+## What's Included
+
+1. FastAPI service (2 replicas)
+2. PostgreSQL database (2Gi storage)
+3. Prometheus (2Gi storage)
+4. Grafana (1Gi storage, pre-configured dashboard)
+5. Ingress (routes traffic)
+6. Network policies (default-deny + allow rules)
+
+## Prerequisites
+
+- Kubernetes 1.28+
+- Helm 3.x
+- Storage class (e.g., `local-path` for k3d)
+- Ingress controller (k3d includes Traefik)
+- FastAPI Docker image
+
+## Install
+
+**1. Build image:**
+
+```bash
+docker build -t wiki-service:0.1.0 wiki-service/
+```
+
+For k3d:
+```bash
+k3d image import wiki-service:0.1.0 -c your-cluster
+```
+
+**2. Create namespace:**
+
+```bash
+kubectl create namespace wiki-prod
+```
+
+**3. Install chart:**
+
+For k3d (local image):
+```bash
+helm install wiki-service . --namespace wiki-prod \
+  --set fastapi.image.tag=0.1.0 \
+  --set fastapi.image.pullPolicy=Never
+```
+
+For registry:
+```bash
+helm install wiki-service . --namespace wiki-prod \
+  --set fastapi.image.repository=your-registry/wiki-service \
+  --set fastapi.image.tag=0.1.0
+```
+
+**4. Verify:**
+
+```bash
+kubectl get pods -n wiki-prod
+kubectl get svc -n wiki-prod
+```
+
+Wait 2-3 minutes for all pods to be ready.
+
+## Customize
+
+Use `--set` to override `values.yaml`:
+
+```bash
+# Change Grafana password
+helm install wiki-service . --set grafana.adminPassword=MyPass
+
+# Increase storage
+helm install wiki-service . \
+  --set postgresql.primary.persistence.size=10Gi \
+  --set prometheus.storageSize=5Gi
+
+# Disable Grafana
+helm install wiki-service . \
+  --set grafana.enabled=false \
+  --set prometheus.enabled=false
+
+# Change FastAPI replicas
+helm install wiki-service . --set fastapi.replicas=3
+```
+
+See `values.yaml` for all options.
+
+## Resource Usage
+
+| Component | CPU Req | Memory Req | CPU Limit | Memory Limit | Storage |
+|-----------|---------|------------|-----------|--------------|---------|
+| FastAPI | 250m | 512Mi | 500m | 1Gi | — |
+| PostgreSQL | 250m | 512Mi | 500m | 1Gi | 2Gi |
+| Prometheus | 250m | 512Mi | 500m | 1Gi | 2Gi |
+| Grafana | 100m | 128Mi | 200m | 256Mi | 1Gi |
+| **Total** | 850m | 1.6Gi | 1.7 | 3.3Gi | 5Gi |
+
+Fits within 2 CPUs, 4GB RAM, 5GB disk.
+
+## Access Services
+
+**FastAPI:**
+```bash
+kubectl port-forward -n wiki-prod svc/wiki-service-wiki-chart-fastapi 8000:8000
+curl http://localhost:8000/users
+```
+
+**Grafana:**
+```bash
+kubectl port-forward -n wiki-prod svc/wiki-service-wiki-chart-grafana 3000:3000
+# Open http://localhost:3000/d/creation-dashboard-678/creation
+# Login: admin / (auto-generated password)
+```
+
+**Prometheus:**
+```bash
+kubectl port-forward -n wiki-prod svc/wiki-service-prometheus 9090:9090
+# Open http://localhost:9090
+```
+
+## Get Credentials
+
+```bash
+# Postgres
+kubectl get secret wiki-service-postgres-secret -n wiki-prod \
+  -o jsonpath='{.data.password}' | base64 -d ; echo
+
+# Grafana
+kubectl get secret wiki-service-grafana-secret -n wiki-prod \
+  -o jsonpath='{.data.admin-password}' | base64 -d ; echo
+```
+
+## Update Release
+
+```bash
+helm upgrade wiki-service . --namespace wiki-prod \
+  --set grafana.adminPassword=NewPass \
+  --set fastapi.replicas=3
+```
+
+## Uninstall
+
+```bash
+helm uninstall wiki-service --namespace wiki-prod
+kubectl delete namespace wiki-prod
+```
+
+## Troubleshooting
+
+**CrashLoopBackOff:**
+```bash
+kubectl logs -n wiki-prod wiki-service-postgres-0
+kubectl logs -n wiki-prod <fastapi-pod>
+```
+Check: storage class exists, DB is ready, PVC permissions.
+
+**FastAPI can't reach DB:**
+Postgres takes 30-60s to initialize. FastAPI has `initContainer` that polls `pg_isready`. Check:
+```bash
+kubectl get pods -n wiki-prod -l app=postgres
+```
+
+**Helm lint fails:**
+```bash
+helm lint . --strict
+```
+
+**Grafana login fails:**
+Password auto-generates if empty. Retrieve it with the credential command above.
+
+## Best Practices
+
+1. Always use `--namespace` to keep deployments isolated
+2. Set explicit passwords (don't rely on auto-generate)
+3. Pin image tags (never use `:latest`)
+4. Monitor with Grafana dashboards
+5. Set resource requests/limits
+6. Use external secret management (Vault, AWS Secrets Manager)
 
 ## Customizing the Deployment
 

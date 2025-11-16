@@ -1,23 +1,30 @@
-# Wiki Service Project
+# Wiki Service
 
-This repository contains a small production-like platform:
+FastAPI + PostgreSQL + Prometheus + Grafana deployed to Kubernetes with Helm.
 
-- `wiki-service/` — FastAPI application (API, async DB, Prometheus metrics)
-- `wiki-chart/` — Helm chart to deploy FastAPI, PostgreSQL, Prometheus, Grafana
-- CI workflows in `.github/workflows/` orchestrated by `ci-sequential.yml`
+## Components
 
-Quick links:
+- `wiki-service/` — FastAPI REST API (users, posts, metrics)
+- `wiki-chart/` — Helm chart for complete deployment
+- `.github/workflows/` — CI/CD pipeline
 
-- Deployment & CI details: `PIPELINE.md`
-- Service developer guide: `wiki-service/README.md`
-- Helm chart operator guide: `wiki-chart/README.md`
+## CI Pipeline
 
-How the CI runs:
+Two options:
 
-- A single orchestrating workflow (`.github/workflows/ci-sequential.yml`) runs four stages in order:
-  1. Python Code Quality & Security
-  2. Docker Image Security Scan
-  3. Helm Chart Validation
-  4. Integration Tests (k3d)
+1. **Independent workflows** — Run separately on push/PR
+   - `python-quality.yml`, `image-scan.yml`, `helm-lint.yml`, `integration-tests.yml`
 
-If you need to run a specific stage locally, follow the instructions in `PIPELINE.md`.
+2. **Combined pipeline** — Runs all stages in order
+   - `.github/workflows/ci-combined.yml`
+   - Stages: Python quality → Docker scan → Helm lint → Integration tests
+   - Later stages skip if earlier stage fails
+
+## Getting Started
+
+See `PIPELINE.md` for full deployment and testing guide.
+
+- **Deploy**: Build image, create namespace, `helm install wiki-service ./wiki-chart --namespace wiki-prod`
+- **Dev**: See `wiki-service/README.md` for local setup
+- **Ops**: See `wiki-chart/README.md` for Helm customization
+- **CI**: See `PIPELINE.md` for pipeline details
