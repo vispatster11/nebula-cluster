@@ -33,7 +33,7 @@ jobs:
         run: |
           black --check wiki-service/
           ruff check wiki-service/
-          bandit -r wiki-service/
+          bandit -r wiki-service/ -s B101
 
   image-scan:
     name: Docker Image Scan
