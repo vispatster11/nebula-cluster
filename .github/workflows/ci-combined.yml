@@ -77,11 +77,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create k3d cluster
-        uses: k3d-io/k3d-action@v2.1.0
-        with:
-          cluster-name: 'ci-cluster'
-          args: '--image rancher/k3s:v1.29.11-k3s1'
+      - name: Install and create k3d cluster
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          k3d cluster create ci-cluster --image rancher/k3s:v1.29.11-k3s1
 
       - name: Build and import image
         run: |
