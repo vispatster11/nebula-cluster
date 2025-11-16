@@ -7,18 +7,11 @@ FastAPI + PostgreSQL + Prometheus + Grafana deployed to Kubernetes with Helm.
 - `wiki-service/` — FastAPI REST API (users, posts, metrics)
 - `wiki-chart/` — Helm chart for complete deployment
 - `.github/workflows/` — CI/CD pipeline
+- `Dockerfile` & `entrypoint.sh` — For running the entire cluster in Docker (Part 2)
 
 ## CI Pipeline
 
-Two options:
-
-1. **Independent workflows** — Run separately on push/PR
-   - `python-quality.yml`, `image-scan.yml`, `helm-lint.yml`, `integration-tests.yml`
-
-2. **Combined pipeline** — Runs all stages in order
-   - `.github/workflows/ci-combined.yml`
-   - Stages: Python quality → Docker scan → Helm lint → Integration tests
-   - Later stages skip if earlier stage fails
+A single, sequential pipeline is defined in `.github/workflows/ci-1.yml`. It runs code quality checks, security scans, and integration tests in order. If any step fails, the pipeline stops.
 
 ## Getting Started
 

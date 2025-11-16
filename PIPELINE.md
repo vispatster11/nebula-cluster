@@ -1,13 +1,13 @@
 # Wiki Service Deployment & Pipeline Guide
 
-Deploy the Wiki API (FastAPI + PostgreSQL + Prometheus + Grafana) to Kubernetes using Helm. This guide covers deployment steps, local testing, and the CI pipeline.
+This guide covers deploying the Wiki API stack (FastAPI, PostgreSQL, Prometheus, Grafana) to Kubernetes using Helm, along with local testing procedures and an overview of the CI/CD pipeline.
 
 ## Components
 
-1. **FastAPI** — REST API for users and posts, with `/metrics` endpoint
-2. **PostgreSQL** — Data storage with asyncpg driver and SQLAlchemy
-3. **Prometheus** — Scrapes metrics every 15 seconds
-4. **Grafana** — Dashboard showing user/post creation rates (login: admin / admin)
+1. **FastAPI** — REST API for users and posts, with a `/metrics` endpoint for Prometheus.
+2. **PostgreSQL** — Persistent data storage using the asyncpg driver and SQLAlchemy.
+3. **Prometheus** — Scrapes metrics from the FastAPI service every 15 seconds.
+4. **Grafana** — Visualizes key metrics on a pre-configured dashboard.
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ curl http://localhost:8000/users
 ```
 
 Grafana:
-```powershell
+```bash
 kubectl port-forward -n wiki-prod svc/wiki-service-wiki-chart-grafana 3000:3000
 # Open http://localhost:3000/d/creation-dashboard-678/creation
 # Login: admin / (auto-generated password)
@@ -89,7 +89,7 @@ Fits within 2 CPUs, 4GB RAM, 5GB disk limit.
 
 PostgreSQL and Grafana passwords are auto-generated on install. To retrieve them:
 
-```powershell
+```bash
 # Postgres
 kubectl get secret wiki-service-postgres-secret -n wiki-prod \
   -o jsonpath='{.data.password}' | base64 -d ; echo
@@ -103,7 +103,7 @@ kubectl get secret wiki-service-grafana-secret -n wiki-prod \
 
 Use `--set` to override `values.yaml`:
 
-```powershell
+```bash
 # Increase storage
 helm install wiki-service ./wiki-chart --namespace wiki-prod \
   --set postgresql.primary.persistence.size=10Gi
@@ -214,7 +214,7 @@ PIPELINE.md — This guide
 
 ## Quick Commands
 
-```powershell
+```bash
 # Deploy
 docker build -t your-registry/wiki-service:0.1.0 wiki-service/
 helm install wiki-service ./wiki-chart --namespace wiki-prod
@@ -230,4 +230,5 @@ kubectl get secret wiki-service-postgres-secret -n wiki-prod \
 # Uninstall
 helm uninstall wiki-service --namespace wiki-prod
 kubectl delete namespace wiki-prod
+
 ```
