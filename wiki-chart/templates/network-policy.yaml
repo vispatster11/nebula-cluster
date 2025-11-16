@@ -126,7 +126,8 @@ spec:
     # Allow from the test job
     - from:
         - podSelector:
-            matchLabels: {{ .Values.test.selectorLabels | toYaml | nindent 14 }}
+            matchLabels:
+              {{- .Values.test.selectorLabels | toYaml | nindent 14 }}
       ports:
         - protocol: TCP
           port: 3000

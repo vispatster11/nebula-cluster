@@ -115,6 +115,28 @@ spec:
             exit 1
           fi
           
+          # Test 7: Grafana health endpoint
+          echo ""
+          echo "Test 7: GET /api/health (Grafana health)"
+          GRAFANA_URL="http://{{ include "wiki-chart.fullname" . }}-grafana:3000"
+          if curl -s "$GRAFANA_URL/api/health" | grep -q '"database":"ok"'; then
+            echo "✓ Grafana health endpoint works"
+          else
+            echo "✗ Grafana health endpoint failed"
+            exit 1
+          fi
+
+          # Test 8: Prometheus health endpoint
+          echo ""
+          echo "Test 8: GET /-/healthy (Prometheus health)"
+          PROMETHEUS_URL="http://{{ include "wiki-chart.fullname" . }}-prometheus:9090"
+          if curl -s "$PROMETHEUS_URL/-/healthy" | grep -q "Prometheus is Healthy."; then
+            echo "✓ Prometheus health endpoint works"
+          else
+            echo "✗ Prometheus health endpoint failed"
+            exit 1
+          fi
+
           echo ""
           echo "=== All tests passed ==="
         resources:
