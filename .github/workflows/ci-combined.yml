@@ -64,7 +64,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'wiki-service:ci-scan'
+          image-ref: 'wiki-service:ci-scan-${{ github.run_id }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
