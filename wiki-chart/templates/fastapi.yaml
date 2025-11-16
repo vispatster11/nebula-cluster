@@ -70,8 +70,6 @@ spec:
             cpu: {{ .Values.fastapi.resources.limits.cpu }}
             memory: {{ .Values.fastapi.resources.limits.memory }}
         securityContext:
-          runAsUser: {{ .Values.fastapi.runAsUser }}
-          runAsGroup: {{ .Values.fastapi.runAsGroup }}
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:

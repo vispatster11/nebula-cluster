@@ -52,6 +52,11 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.fastapi.port }}
+    # Allow from Postgres (for TCP handshake during initContainer checks)
+    - from:
+      - podSelector:
+          matchLabels:
+            app: postgres
   egress:
     # Allow to Postgres
     - to:
@@ -71,21 +76,23 @@ spec:
         - protocol: UDP
           port: 53
 ---
-# Allow Postgres to talk back to FastAPI.
-# This is necessary for readiness checks from init containers that establish a TCP connection.
+# Allow traffic to Postgres from the FastAPI app
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "wiki-chart.fullname" . }}-allow-postgres-to-fastapi
+  name: {{ include "wiki-chart.fullname" . }}-allow-to-postgres
   namespace: {{ .Release.Namespace }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "wiki-chart.selectorLabels" . | nindent 6 }}
+      app: postgres
   policyTypes:
-    - Ingress
+  - Ingress
   ingress:
     - from:
       - podSelector:
           matchLabels:
-            app: postgres
+            {{- include "wiki-chart.selectorLabels" . | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: 5432
