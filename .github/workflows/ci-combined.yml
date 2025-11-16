@@ -215,25 +215,44 @@ jobs:
         run: |
           # Use the built-in Helm test runner to execute the tests defined in test-job.yaml
           # This is the standard, idiomatic way to run tests with Helm.
-          helm test ci-release --namespace ci-test --logs
+          # The --timeout flag prevents the pipeline from getting stuck if tests hang.
+          helm test ci-release --namespace ci-test --logs --timeout 5m
 
       - name: Test Ingress and Grafana
         run: |
-          echo "--- Testing Ingress and Grafana Dashboard ---"
+          echo "--- Testing Ingress Endpoints ---"
           # Set up port forwarding to the k3d ingress controller
           kubectl port-forward --namespace kube-system service/k3d-ci-cluster-serverlb 8080:80 >/dev/null 2>&1 &
           sleep 5 # Allow time for port-forward to establish
 
           BASE_URL="http://localhost:8080"
 
+          # Test 1: FastAPI root endpoint
+          echo "Testing FastAPI root endpoint..."
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" --connect-timeout 5 --max-time 10 -H "Host: localhost" "$BASE_URL/")
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | awk -F: '{print $2}')
+          echo "Response Body: $(echo "$RESPONSE" | sed '$d')"
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✓ PASSED: FastAPI root is accessible via ingress with status 200."
+          else
+            echo "✗ FAILED: Expected status 200 for FastAPI root, but got $HTTP_CODE."
+            exit 1
+          fi
+          echo ""
+
+          # Test 2: Grafana dashboard
           echo "Testing Grafana dashboard access..."
           # Check for a 200 OK, which confirms the ingress and service are working.
           # The -u admin:admin is required by the assignment.
-          http_code=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: localhost" -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
-          if [ "$http_code" -eq 200 ]; then
+          # We expect a 302 redirect to the login page if not authenticated, but a 200 if auth works.
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" --connect-timeout 5 --max-time 10 -H "Host: localhost" -u admin:admin "$BASE_URL/grafana/d/creation-dashboard-678/creation")
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE" | awk -F: '{print $2}')
+          # We don't print the body for Grafana as it's large HTML. The status code is sufficient.
+          echo "Response Status: $HTTP_CODE"
+          if [ "$HTTP_CODE" -eq 200 ]; then
             echo "✓ PASSED: Grafana dashboard is accessible via ingress with status 200."
           else
-            echo "✗ FAILED: Expected status 200 for Grafana dashboard via ingress, but got $http_code."
+            echo "✗ FAILED: Expected status 200 for Grafana dashboard via ingress, but got $HTTP_CODE."
             exit 1
           fi
 
