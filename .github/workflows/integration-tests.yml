@@ -1,9 +1,16 @@
-name: CI Pipeline - Build, Test, Scan & Deploy
+name: Stage 4 - Integration Tests (k3d)
 
-# NOTE: This integration workflow can be triggered manually for debugging.
-# The canonical CI workflow is `.github/workflows/ci-sequential.yml` which
-# orchestrates the integration stage as part of the full pipeline.
 on:
+  push:
+    branches:
+      - '*'
+    paths:
+      - 'wiki-service/**'
+      - 'wiki-chart/**'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches:
+      - '*'
   workflow_dispatch:
 
 jobs:

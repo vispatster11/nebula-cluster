@@ -1,105 +1,10 @@
 # Wiki Service Helm Chart
 
-This Helm chart packages the entire Wiki API service stack for Kubernetes: FastAPI application, PostgreSQL database, Prometheus monitoring, and Grafana dashboards—all in one go.
+This Helm chart packages the entire Wiki API service stack for Kubernetes: a FastAPI application, PostgreSQL database, Prometheus monitoring, and Grafana dashboards.
 
 ## Why Use This Chart?
 
-Instead of manually creating Kubernetes manifests for each component, this chart lets you deploy everything with a single command:
-
-```bash
-helm install wiki-service . --namespace wiki-prod
-```
-
-The chart handles:
-- **Database setup**: PostgreSQL with persistent storage
-- **Application deployment**: FastAPI with auto-retry on database failure
-- **Monitoring**: Prometheus scraping metrics and Grafana visualization
-- **Networking**: Ingress routing, service discovery, network policies
-- **Security**: Non-root users, resource limits, RBAC service accounts
-
-## What's Included
-
-The chart deploys five main components:
-
-1. **FastAPI Service**: REST API for users and posts (2 replicas by default)
-2. **PostgreSQL**: Persistent database with 2Gi storage
-3. **Prometheus**: Metrics collection and storage (2Gi)
-4. **Grafana**: Dashboard visualization (1Gi storage, includes pre-configured dashboard)
-5. **Ingress**: Routes incoming traffic to FastAPI and Grafana
-6. **Network Policies**: Restricts traffic to only necessary paths
-
-## Prerequisites
-
-- **Kubernetes**: 1.28 or later
-- **Helm**: 3.x
-- **Storage**: A storage class must exist (e.g., `local-path` for k3d, `default` for cloud clusters)
-- **Ingress Controller**: Your cluster must have an ingress controller (k3d includes Traefik by default)
-- **FastAPI Image**: Built and available (either in your registry or pre-loaded into the cluster)
-
-## Installation
-
-### Step 1: Build the FastAPI Docker Image
-
-From the repository root:
-
-```bash
-docker build -t wiki-service:0.1.0 wiki-service/
-```
-
-For **local k3d** clusters:
-
-```bash
-k3d image import wiki-service:0.1.0 -c your-cluster-name
-```
-
-For **cloud registries**:
-
-```bash
-docker tag wiki-service:0.1.0 your-registry/wiki-service:0.1.0
-docker push your-registry/wiki-service:0.1.0
-```
-
-### Step 2: Create a Namespace
-
-```bash
-kubectl create namespace wiki-prod
-```
-
-### Step 3: Install the Chart
-
-**For local k3d** (image already imported):
-
-```bash
-helm install wiki-service . \
-  --namespace wiki-prod \
-  --set fastapi.image.tag=0.1.0 \
-  --set fastapi.image.pullPolicy=Never
-```
-
-**For cloud registry**:
-
-```bash
-helm install wiki-service . \
-  --namespace wiki-prod \
-  --set fastapi.image.repository=your-registry/wiki-service \
-  --set fastapi.image.tag=0.1.0 \
-  --set grafana.adminPassword=MySecurePassword
-```
-
-### Step 4: Verify Everything Is Running
-
-```bash
-kubectl get pods -n wiki-prod
-kubectl get svc -n wiki-prod
-```
-
-# Wiki Service Helm Chart
-
-Deploy FastAPI + PostgreSQL + Prometheus + Grafana to Kubernetes with one command.
-
-## Why?
-
-Instead of manually writing YAML manifests, this chart handles:
+Instead of manually writing and managing Kubernetes manifests, this chart automates the deployment of the entire application stack. It handles:
 - Database setup with persistent storage
 - FastAPI with auto-retry on DB failure
 - Prometheus + Grafana monitoring
@@ -109,11 +14,11 @@ Instead of manually writing YAML manifests, this chart handles:
 ## What's Included
 
 1. FastAPI service (2 replicas)
-2. PostgreSQL database (2Gi storage)
-3. Prometheus (2Gi storage)
-4. Grafana (1Gi storage, pre-configured dashboard)
-5. Ingress (routes traffic)
-6. Network policies (default-deny + allow rules)
+2. PostgreSQL database (2Gi persistent storage)
+3. Prometheus server (2Gi persistent storage)
+4. Grafana instance (1Gi persistent storage, with a pre-configured dashboard)
+5. Ingress for routing external traffic
+6. Network policies for secure, in-cluster communication
 
 ## Prerequisites
 
@@ -121,7 +26,7 @@ Instead of manually writing YAML manifests, this chart handles:
 - Helm 3.x
 - Storage class (e.g., `local-path` for k3d)
 - Ingress controller (k3d includes Traefik)
-- FastAPI Docker image
+- A pre-built FastAPI Docker image
 
 ## Install
 

@@ -16,11 +16,11 @@ Deploy the Wiki API (FastAPI + PostgreSQL + Prometheus + Grafana) to Kubernetes 
 - Docker
 - kubectl configured
 
-## Deploy to Kubernetes
+## Local Deployment (k3d)
 
-**1. Build the image:**
+**1. Build the Docker Image:**
 
-```powershell
+```bash
 docker build -t wiki-service:0.1.0 wiki-service/
 ```
 

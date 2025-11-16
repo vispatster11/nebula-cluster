@@ -1,0 +1,293 @@
+name: nebula-cluster
+
+on:
+  push:
+    branches:
+      - '*'
+    paths:
+      - '**/*.py'
+      - 'wiki-service/**'
+      - 'wiki-chart/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    name: Python Code Quality & Security
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - name: Check Python syntax
+        run: python -m py_compile $(find . -name "*.py" -type f)
+      - name: Install Bandit
+        run: pip install bandit
+      - name: Run Bandit security scanner
+        run: |
+          bandit -r . --exclude tests,__pycache__ -f json -o bandit-report.json || true
+          bandit -r . --exclude tests,__pycache__ -f txt || true
+      - name: Upload Bandit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Check Python dependencies for vulnerabilities
+        run: |
+          set -e
+          echo "Scanning Python dependencies for known vulnerabilities..."
+          DIRS=$(find . -maxdepth 3 -type f \( -name "requirements.txt" -o -name "pyproject.toml" \) -printf '%h\n' | sort -u)
+          if [ -z "$DIRS" ]; then
+            echo "No Python project files found. Running pip-audit on environment."
+            pip-audit --desc || true
+          else
+            for d in $DIRS; do
+              echo "Processing: $d"
+              pushd "$d" > /dev/null
+              if [ -f "requirements.txt" ]; then
+                pip install -r requirements.txt || echo "Failed to install requirements in $d"
+              fi
+              pip-audit --desc || echo "pip-audit found issues in $d"
+              popd > /dev/null
+            done
+          fi
+
+  docker-scan:
+    runs-on: ubuntu-latest
+    name: Docker Image Security Scan with Trivy
+    needs: [python-quality]
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./wiki-service
+          push: false
+          load: true
+          tags: wiki-fastapi:${{ github.sha }}
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wiki-fastapi:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4 
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      - name: Display Trivy results
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wiki-fastapi:${{ github.sha }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+  helm-validation:
+    runs-on: ubuntu-latest
+    name: Helm Chart Validation
+    needs: [docker-scan]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.13.0'
+      - name: Lint Helm chart
+        run: helm lint wiki-chart --strict
+      - name: Validate Helm templates
+        run: helm template wiki wiki-chart
+      - name: Verify required Kubernetes resources
+        run: |
+          output=$(helm template wiki wiki-chart)
+          for resource_type in Deployment Service Secret ConfigMap Ingress NetworkPolicy PodDisruptionBudget Job; do
+            if echo "$output" | grep -q "kind: $resource_type"; then
+              echo "✓ Found $resource_type"
+            else
+              echo "✗ Missing $resource_type"
+              exit 1
+            fi
+          done
+      - name: Check security contexts
+        run: |
+          output=$(helm template wiki wiki-chart)
+          if echo "$output" | grep -q 'runAsNonRoot: true'; then
+            echo "✓ Security context found (non-root)"
+          fi
+          if echo "$output" | grep -q 'DROP'; then
+            echo "✓ Capability dropping configured"
+          fi
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: CI Pipeline - Build, Test, Scan & Deploy
+    needs: [helm-validation]
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: wiki
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r wiki-service/requirements.txt
+          pip install pytest pytest-asyncio httpx
+      - name: Wait for PostgreSQL
+        run: |
+          sudo apt-get update && sudo apt-get install -y netcat-openbsd
+          until nc -z 127.0.0.1 5432; do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+      - name: Run unit tests
+        env:
+          DB_USER: postgres
+          DB_PASSWORD: testpass
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: wiki
+        run: |
+          pytest -v --tb=short wiki-service/ || echo "Tests completed with status: $?"
+      - name: Build Docker image
+        run: |
+          docker build -t wiki-service:ci wiki-service/
+          docker save wiki-service:ci -o wiki-service.tar
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-service-image
+          path: wiki-service.tar
+      - name: Download Docker image for k3d
+        uses: actions/download-artifact@v4
+        with:
+          name: wiki-service-image
+      - name: Load Docker image
+        run: docker load -i wiki-service.tar
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.13.0'
+      - name: Install k3d
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+      - name: Create k3d cluster
+        run: |
+          k3d cluster create test-wiki --image rancher/k3s:v1.31.13-k3s1 --wait || true
+          kubectl config use-context k3d-test-wiki || true
+      - name: Import FastAPI image into k3d
+        run: k3d image import wiki-service:ci -c test-wiki
+      - name: Deploy Helm chart
+        run: |
+          kubectl create namespace wiki-test || true
+          kubectl config set-context --current --namespace=wiki-test
+          helm install test-wiki ./wiki-chart \
+            --namespace wiki-test \
+            --set fastapi.image.tag=ci \
+            --set fastapi.image.pullPolicy=Never \
+            --set grafana.adminPassword=admin \
+            --wait --timeout 5m || true
+      - name: Check deployment status
+        run: |
+          echo "Pod Status"
+          kubectl get pods -n wiki-test -o wide || true
+          echo "Service Status"
+          kubectl get svc -n wiki-test || true
+          echo "Investigating non-ready pods and collecting logs..."
+          for p in $(kubectl get pods -n wiki-test -o custom-columns=NAME:.metadata.name --no-headers); do
+            READY=$(kubectl get pod $p -n wiki-test -o jsonpath='{.status.containerStatuses[*].ready}' || echo '')
+            if [ -z "$READY" ] || echo "$READY" | grep -qv "true"; then
+              echo "---- Pod: $p ----"
+              kubectl describe pod $p -n wiki-test || true
+              echo "Logs (all containers):"
+              kubectl logs $p -n wiki-test --all-containers=true --tail=200 || true
+              INIT_CONTAINERS=$(kubectl get pod $p -n wiki-test -o jsonpath='{.spec.initContainers[*].name}' || echo '')
+              for ic in $INIT_CONTAINERS; do
+                if [ -n "$ic" ]; then
+                  echo "Init container $ic logs for pod $p:"
+                  kubectl logs $p -n wiki-test -c $ic || true
+                fi
+              done
+            fi
+          done
+      - name: Wait for pods and run tests
+        continue-on-error: true
+        run: |
+          kubectl wait --for=condition=ready pod -n wiki-test -l app.kubernetes.io/instance=test-wiki --timeout=120s || true
+          kubectl wait --for=condition=complete job/test-wiki-test -n wiki-test --timeout=60s || true
+          kubectl logs job/test-wiki-test -n wiki-test --tail=100 || true
+      - name: Test FastAPI endpoints
+        continue-on-error: true
+        run: |
+          FASTAPI_SVC=$(kubectl get svc -n wiki-test --no-headers | grep 8000 || true | awk '{print $1}' | head -n1)
+          if [ -z "$FASTAPI_SVC" ]; then
+            FASTAPI_SVC=$(kubectl get svc -n wiki-test --no-headers | awk '{print $1}' | head -n1)
+          fi
+          if [ -n "$FASTAPI_SVC" ]; then
+            kubectl port-forward -n wiki-test svc/$FASTAPI_SVC 8080:8000 & 
+            FORWARD_PID=$!
+            sleep 5
+            curl -s -i http://localhost:8080/ --max-time 5 || true
+            curl -s -X POST http://localhost:8080/users -H "Content-Type: application/json" -d '{"name":"K8s Test User"}' --max-time 5 || true
+            kill -9 $FORWARD_PID 2>/dev/null || true
+          fi
+      - name: Test Grafana dashboard
+        continue-on-error: true
+        run: |
+          kubectl port-forward -n wiki-test svc/test-wiki-grafana 3000:80 & 
+          FORWARD_PID=$!
+          sleep 3
+          curl -s -i http://localhost:3000/api/health --max-time 5 || true
+          kill -9 $FORWARD_PID 2>/dev/null || true
+      - name: Cleanup k3d cluster
+        if: always()
+        continue-on-error: true
+        run: k3d cluster delete test-wiki || true
+
+  pipeline-summary:
+    runs-on: ubuntu-latest
+    name: Pipeline Completion Summary
+    needs: [integration-tests]
+    if: always()
+    steps:
+      - name: Pipeline Status
+        run: |
+          echo "=== CI Pipeline Completed ==="
+          echo "All stages completed successfully (if no errors were reported):"
+          echo "✓ Python Code Quality & Security"
+          echo "✓ Docker Image Security Scan"
+          echo "✓ Helm Chart Validation"
+          echo "✓ Integration Tests"

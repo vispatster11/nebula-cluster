@@ -1,16 +1,23 @@
 name: Helm Chart Validation
 
-# NOTE: This workflow is kept for manual/targeted runs. The primary pipeline is
-# `.github/workflows/ci-sequential.yml` which runs the Helm validation stage
-# as part of its sequential flow.
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wiki-chart/**'
+      - '.github/workflows/helm-lint.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'wiki-chart/**'
   workflow_dispatch:
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     name: Lint and Validate Helm Chart
-    needs: []
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -88,7 +95,6 @@ jobs:
   integration-test:
     runs-on: ubuntu-latest
     name: Integration Test (if cluster available)
-    needs: [lint]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
