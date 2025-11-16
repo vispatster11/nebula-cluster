@@ -14,8 +14,8 @@ on:
 jobs:
   python-quality:
     name: Python Code Quality
-    runs-on: ubuntu-latest
-    # runs-on: self-hosted
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,8 +47,8 @@ jobs:
 
   helm-lint:
     name: Helm Chart Validation
-    runs-on: ubuntu-latest
-    # runs-on: self-hosted
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,8 +61,8 @@ jobs:
 
   integration-test:
     name: Integration Tests (k3d)
-    runs-on: ubuntu-latest
-    # runs-on: self-hosted
+    # runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [python-quality, helm-lint]
     if: always() && needs.python-quality.result == 'success' && needs.helm-lint.result == 'success'
     steps:
