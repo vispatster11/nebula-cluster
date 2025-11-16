@@ -57,6 +57,7 @@ spec:
   template:
     metadata:
       labels:
+        {{- .Values.prometheus.selectorLabels | toYaml | nindent 8 }}
         {{- include "wiki-chart.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "wiki-chart.fullname" . }}-prometheus

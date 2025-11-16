@@ -6,15 +6,16 @@ This Helm chart packages the entire Wiki API service stack for Kubernetes: a Fas
 
 - Kubernetes 1.28+
 - Helm 3.x
-- A running Kubernetes cluster (like k3d or Docker Desktop)
-- An Ingress Controller (k3d includes Traefik by default)
+- Docker
+- `k3d` for creating local clusters
 
 ## Local Development and Testing
 
 This project includes scripts to simplify local development and testing.
 
-### 1. Validate the Helm Chart
-Before deploying, you can lint the chart and render the templates to check for errors.
+### 1. Validate the Chart (`helm-validate.sh`)
+
+Before deploying, you can lint the chart and render its templates to a local file (`rendered-manifests.yaml`) to check for syntax errors and inspect the generated Kubernetes objects.
 
 ```bash
 bash ./tests/helm-validate.sh
@@ -134,29 +135,6 @@ helm upgrade wiki-service . --namespace wiki-prod \
 helm uninstall wiki-service --namespace wiki-prod
 kubectl delete namespace wiki-prod
 ```
-
-## Troubleshooting
-
-**CrashLoopBackOff:**
-```bash
-kubectl logs -n wiki-prod wiki-service-postgres-0
-kubectl logs -n wiki-prod <fastapi-pod>
-```
-Check: storage class exists, DB is ready, PVC permissions.
-
-**FastAPI can't reach DB:**
-Postgres takes 30-60s to initialize. FastAPI has `initContainer` that polls `pg_isready`. Check:
-```bash
-kubectl get pods -n wiki-prod -l app=postgres
-```
-
-**Helm lint fails:**
-```bash
-helm lint . --strict
-```
-
-**Grafana login fails:**
-Password auto-generates if empty. Retrieve it with the credential command above.
 
 ## Best Practices
 
