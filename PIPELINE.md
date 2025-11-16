@@ -111,24 +111,23 @@ helm install wiki-service ./wiki-chart --namespace wiki-prod \
 
 ## CI Pipeline: Two Approaches
 
-**Option 1: Independent Workflows (default)**
+**Approach 1: Sequential Pipeline**
 
-Each stage runs separately on push/PR:
-- `python-quality.yml` — code quality & security
-- `image-scan.yml` — Trivy vulnerability scan
-- `helm-lint.yml` — Helm chart validation
-- `integration-tests.yml` — k3d integration tests
+A single workflow (`ci-1.yml`) runs all jobs in a specific order. If any job fails, subsequent jobs are skipped. This is ideal for pull request checks to ensure all quality gates are passed before merging.
+- **File**: `.github/workflows/ci-1.yml`
+- **Sequence**:
+  1.  Python Quality (`ci-2.yml` logic)
+  2.  Docker Scan (`ci-3.yml` logic)
+  3.  Helm Lint (`ci-4.yml` logic)
+  4.  Integration Test (`ci-5.yml` logic)
 
-Pros: quick feedback, easy to re-run single stage. Cons: need manual coordination.
+**Approach 2: Independent Workflows**
 
-**Option 2: Combined Pipeline**
-
-One workflow runs all stages in order: `.github/workflows/ci-combined.yml`
-- Stages chain with `needs` dependencies
-- Later stages skip if earlier stage fails
-- Full pipeline: quality → scan → helm-lint → integration
-
-Pros: linear flow, gated deployment. Cons: longer runtime.
+Each stage runs as a separate, independent workflow, triggered by changes to relevant files. This is useful for getting quick, targeted feedback.
+- `ci-2.yml` — Lints and scans Python code.
+- `ci-3.yml` — Builds and scans the Docker image for vulnerabilities.
+- `ci-4.yml` — Validates the Helm chart.
+- `ci-5.yml` — Runs a full deployment test in a temporary k3d cluster.
 
 ## Test Locally
 
@@ -199,8 +198,11 @@ wiki-chart/
    ├─ ingress.yaml, network-policy.yaml, _helpers.tpl
 
 .github/workflows/
-├─ python-quality.yml, image-scan.yml, helm-lint.yml, integration-tests.yml
-└─ ci-combined.yml (single pipeline running all 4 stages in order)
+├─ ci-1.yml   # Approach 1: Sequential Pipeline
+├─ ci-2.yml   # Approach 2: Independent Python check
+├─ ci-3.yml   # Approach 2: Independent Docker scan
+├─ ci-4.yml   # Approach 2: Independent Helm lint
+└─ ci-5.yml   # Approach 2: Independent Integration test
 
 tests/
 ├─ helm-validate.sh, integration-local.sh

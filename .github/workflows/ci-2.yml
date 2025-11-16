@@ -1,0 +1,36 @@
+name: CI-2 Python Quality
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**/*.py'
+      - '.github/workflows/ci-2.yml'
+
+jobs:
+  quality-and-security:
+    name: Run Python Linters and Scanners
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r wiki-service/requirements.txt
+          pip install bandit black ruff
+
+      - name: Run Black Formatter
+        run: black --check wiki-service/
+
+      - name: Run Ruff Linter
+        run: ruff check wiki-service/
+
+      - name: Run Bandit Security Scanner
+        run: bandit -r wiki-service/
