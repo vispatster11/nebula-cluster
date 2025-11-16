@@ -40,8 +40,9 @@ spec:
     targetPort: 9090
     protocol: TCP
   selector:
-    {{- .Values.prometheus.selectorLabels | toYaml | nindent 4 }}
-    {{- include "wiki-chart.selectorLabels" . | nindent 4 }}
+    app: prometheus
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "wiki-chart.name" . }}
 ---
 apiVersion: apps/v1
 kind: Deployment
