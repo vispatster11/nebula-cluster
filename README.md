@@ -1,3 +1,6 @@
+question-Pdf attached : Question.pdf
+
+
 # Wiki Service - FastAPI + PostgreSQL + Prometheus + Grafana on Kubernetes
 
 **Part 1:** FastAPI REST API with PostgreSQL, Prometheus metrics scraping, Grafana dashboard at `/d/creation-dashboard-678/creation` (admin:admin). Exposed via Ingress: `/users/*`, `/posts/*`, `/grafana/*`.
