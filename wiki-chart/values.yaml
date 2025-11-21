@@ -6,6 +6,9 @@ fastapi:
     repository: "wiki-service"
     tag: "0.1.0"  # Do NOT use `latest`; pin to a version or digest
     pullPolicy: Never  # k3d loads images from host, not pulling
+  # Optional full image name (repository:tag or registry/repo:tag).
+  # If set, this will be used instead of `fastapi.image.repository` + `fastapi.image.tag`.
+  image_name: ""
   imagePullSecrets: []
   port: 8000
   replicas: 1
@@ -39,7 +42,7 @@ postgresql:
   port: 5432
   primary:
     persistence:
-      size: 2Gi
+      size: 1Gi
       # Storage class name for k3d/local-path. Change if your cluster uses another class.
       storageClass: "local-path"
   resources:
@@ -78,7 +81,7 @@ prometheus:
       memory: 1Gi
   retention: 15d
   persistence:
-    size: 2Gi
+    size: 1Gi
   securityContext:
     runAsNonRoot: true
     allowPrivilegeEscalation: false

@@ -47,7 +47,7 @@ spec:
           done
       containers:
       - name: fastapi
-        image: "{{ .Values.fastapi.image.repository }}:{{ .Values.fastapi.image.tag }}"
+        image: "{{- if .Values.fastapi.image_name }}{{ .Values.fastapi.image_name }}{{- else }}{{ .Values.fastapi.image.repository }}:{{ .Values.fastapi.image.tag }}{{- end }}"
         imagePullPolicy: {{ .Values.fastapi.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.fastapi.port }}
