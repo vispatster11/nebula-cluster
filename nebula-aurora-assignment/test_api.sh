@@ -7,8 +7,8 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Base URL (can be overridden via env var `BASE_URL`)
-BASE_URL="${BASE_URL:-http://localhost:8080}"
+# Base URL
+BASE_URL="http://localhost:8080"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Testing User and Post API${NC}"
